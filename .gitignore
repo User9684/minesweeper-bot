@@ -1,0 +1,3 @@
+*.env
+!app.example.env
+!db.example.env
