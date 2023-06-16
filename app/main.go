@@ -7,25 +7,21 @@ import (
 	"regexp"
 	"syscall"
 
+	"main/minesweeper"
+
 	"github.com/bwmarrin/discordgo"
-	"github.com/rrborja/minesweeper"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type MinesweeperGame struct {
-	GuildID      string
-	ChannelID    string
-	BoardID      string
-	FlagID       string
-	UserID       string
-	Difficulty   string
-	flagEnabled  bool
-	Game         minesweeper.Minesweeper
-	VisitedCells []minesweeper.Block
-	FlaggedCells []struct {
-		X int
-		Y int
-	}
+	GuildID     string
+	ChannelID   string
+	BoardID     string
+	FlagID      string
+	UserID      string
+	Difficulty  string
+	flagEnabled bool
+	Game        *minesweeper.Game
 }
 
 var s *discordgo.Session

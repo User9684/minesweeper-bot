@@ -10,7 +10,7 @@ services:
   app:
     build:
       context: ../
-      dockerfile: minesweeper/Dockerfile
+      dockerfile: minesweeper_docker/Dockerfile
     restart: unless-stopped
     depends_on:
       - db

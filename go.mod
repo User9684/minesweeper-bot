@@ -4,7 +4,6 @@ go 1.20
 
 require (
 	github.com/bwmarrin/discordgo v0.27.1
-	github.com/rrborja/minesweeper v0.0.0-20180607161810-b78434c7eb29
 )
 
 require (

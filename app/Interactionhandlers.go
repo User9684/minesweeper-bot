@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
+	"main/minesweeper"
 	"strconv"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/rrborja/minesweeper"
 )
 
 var RequestOption = func(cfg *discordgo.RequestConfig) {
@@ -44,28 +44,23 @@ var InteractionHandlers = map[string]func(s *discordgo.Session, i *discordgo.Int
 			return
 		}
 
-		game, _ := minesweeper.NewGame(minesweeper.Grid{
-			Width:  5,
-			Height: 5,
-		})
+		var Game *minesweeper.Game
 
 		switch optionMap["difficulty"].Value {
 		case "easy":
-			game.SetDifficulty(1)
+			Game = minesweeper.NewGame(minesweeper.Easy)
 		case "medium":
-			game.SetDifficulty(2)
+			Game = minesweeper.NewGame(minesweeper.Medium)
 		case "hard":
-			game.SetDifficulty(3)
+			Game = minesweeper.NewGame(minesweeper.Hard)
 		}
 
 		newGame := MinesweeperGame{
 			GuildID:    i.GuildID,
 			ChannelID:  i.ChannelID,
-			Game:       game,
+			Game:       Game,
 			Difficulty: fmt.Sprintf("%v", optionMap["difficulty"].Value),
 		}
-
-		game.Play()
 
 		content := "here you go >~<"
 		board := GenerateBoard(&newGame)
@@ -107,6 +102,11 @@ var InteractionHandlers = map[string]func(s *discordgo.Session, i *discordgo.Int
 		Games[userID] = &newGame
 	},
 	"minesweeperflagbutton": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		// Response to interaction.
+		go s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseDeferredMessageUpdate,
+		})
+
 		userID, _ := getUserID(i)
 		game := Games[userID]
 
@@ -139,11 +139,6 @@ var InteractionHandlers = map[string]func(s *discordgo.Session, i *discordgo.Int
 			fmt.Println(err)
 			return
 		}
-
-		// Response to interaction.
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseDeferredMessageUpdate,
-		})
 	},
 }
 
@@ -151,16 +146,14 @@ func HandleBoard(s *discordgo.Session, i *discordgo.InteractionCreate, positionx
 	userID, _ := getUserID(i)
 	game := Games[userID]
 
+	spot := game.Game.FindSpot(positionx, positiony)
+
 	if game.flagEnabled {
-		flagSpot(game, positionx, positiony)
+		game.Game.FlagSpot(spot)
 	}
 
 	if !game.flagEnabled {
-		visited, err := game.Game.Visit(positionx, positiony)
-		if err != nil {
-			fmt.Println(err)
-		}
-		game.VisitedCells = append(game.VisitedCells, visited...)
+		game.Game.VisitSpot(spot)
 	}
 
 	content := "here you go >~<"
@@ -182,90 +175,53 @@ func HandleBoard(s *discordgo.Session, i *discordgo.InteractionCreate, positionx
 	})
 }
 
-func flagSpot(game *MinesweeperGame, x, y int) {
-	game.Game.Flag(x, y)
-	for i, spot := range game.FlaggedCells {
-		if spot.X != x {
-			continue
-		}
-		if spot.Y != y {
-			continue
-		}
-
-		game.FlaggedCells = append(game.FlaggedCells[:i], game.FlaggedCells[i+1:]...)
-		return
-	}
-
-	game.FlaggedCells = append(game.FlaggedCells, struct {
-		X int
-		Y int
-	}{
-		X: x,
-		Y: y,
-	})
-}
-
 func GenerateBoard(Game *MinesweeperGame) []discordgo.MessageComponent {
 	var Rows []discordgo.MessageComponent
+	currentRow := discordgo.ActionsRow{}
 
 	for y := 0; y <= 4; y++ {
-		currentRow := discordgo.ActionsRow{}
 		for x := 0; x <= 4; x++ {
-			newComponent := &discordgo.Button{
-				Style:    discordgo.PrimaryButton,
-				CustomID: fmt.Sprintf("boardx%dy%d", x, y),
-			}
-			str := GetBoardSpot(Game, x, y)
+			spot := Game.Game.FindSpot(x, y)
 
-			switch str {
-			case "inv":
+			// Create the button.
+			newComponent := &discordgo.Button{
+				Style:    discordgo.SecondaryButton,
+				CustomID: fmt.Sprintf("boardx%dy%d", spot.X, spot.Y),
+			}
+
+			switch spot.DisplayedType {
+			case minesweeper.Hidden:
 				newComponent.Emoji = discordgo.ComponentEmoji{
-					Name:     "invie",
-					ID:       "1112567785076305971",
-					Animated: false,
+					Name: "invie",
+					ID:   "1112567785076305971",
 				}
-			case "exp":
+
+			case minesweeper.Bomb:
 				newComponent.Emoji = discordgo.ComponentEmoji{
 					Name: "💥",
 				}
-			case "flg":
+				newComponent.Style = discordgo.DangerButton
+
+			case minesweeper.Flag:
 				newComponent.Emoji = discordgo.ComponentEmoji{
 					Name: "🚩",
 				}
+				newComponent.Style = discordgo.SuccessButton
+
 			default:
-				newComponent.Label = str
+				newComponent.Label = strconv.Itoa(spot.NearbyBombs)
 			}
 
 			currentRow.Components = append(currentRow.Components, newComponent)
+
+			if len(currentRow.Components) >= 5 {
+				Rows = append(Rows, currentRow)
+				currentRow = discordgo.ActionsRow{}
+			}
 		}
-		Rows = append(Rows, currentRow)
 	}
 
 	return Rows
-}
-
-func GetBoardSpot(Game *MinesweeperGame, x, y int) string {
-	for _, spot := range Game.VisitedCells {
-		if spot.X() == x && spot.Y() == y {
-			if spot.Flagged() {
-				return "flg"
-			}
-			if spot.Visited() && (spot.Node == 2) {
-				return "exp"
-			}
-			if spot.Visited() {
-				return strconv.Itoa(spot.Value)
-			}
-		}
-	}
-
-	for _, spot := range Game.FlaggedCells {
-		if spot.X == x && spot.Y == y {
-			return "flg"
-		}
-	}
-
-	return "inv"
 }
 
 func CmdInit(s *discordgo.Session) {
