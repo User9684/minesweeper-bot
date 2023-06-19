@@ -84,11 +84,11 @@ func main() {
 
 	err = s.Open()
 	if err != nil {
-		fmt.Printf("Cannot open the session: %v\n", err)
+		fmt.Printf("Cannot open the session\n%v\n", err)
 		return
 	}
 
-	CmdInit(s)
+	RegisterCommands(s)
 
 	// Waits for SIGTERM.
 	sigChan := make(chan os.Signal, 1)

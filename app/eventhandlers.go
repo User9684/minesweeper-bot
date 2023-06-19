@@ -47,11 +47,10 @@ func RegisterEvents() {
 			HandleComponent(s, i)
 		}
 	})
-
 }
 
 func HandleCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	if h, ok := InteractionHandlers[i.ApplicationCommandData().Name]; ok {
+	if h, ok := CommandHandlers[i.ApplicationCommandData().Name]; ok {
 		go h(s, i)
 		return
 	}
@@ -92,7 +91,7 @@ func HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 
-	if h, ok := InteractionHandlers[customID]; ok {
+	if h, ok := ComponentHandlers[customID]; ok {
 		go h(s, i)
 		return
 	}
