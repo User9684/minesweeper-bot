@@ -12,6 +12,7 @@ const (
 	Normal
 	Bomb
 	Flag
+	StartHere
 )
 
 // Difficulties.
@@ -19,6 +20,13 @@ const (
 	Easy = iota
 	Medium
 	Hard
+)
+
+// Outcomes.
+const (
+	Nothing = iota
+	Lost
+	Won
 )
 
 type Spot struct {
@@ -34,35 +42,41 @@ type Game struct {
 	Spots        map[string]*Spot
 	VisitedZeros map[string]bool
 	Difficulty   int
+	SpotsLeft    int
 }
 
 func NewGame(dif int) *Game {
+	spots, bombCount := generateSpots(dif)
 	game := &Game{
-		Spots:        generateSpots(dif),
-		Difficulty:   dif,
+		Spots:        spots,
 		VisitedZeros: make(map[string]bool),
+		Difficulty:   dif,
+		SpotsLeft:    (5 * 5) - bombCount,
 	}
 
 	return game
 }
 
-func (g *Game) VisitSpot(s *Spot) bool {
+func (g *Game) VisitSpot(s *Spot) (bool, int) {
 	if s.Type == Flag {
-		return false
+		return false, Nothing
 	}
 	if s.Type == Bomb {
 		s.DisplayedType = Bomb
-		return true
+		return true, Lost
 	}
 
 	// Update the displayed type of the spot.
 	s.DisplayedType = Normal
+	g.SpotsLeft--
 
-	if s.NearbyBombs == 0 {
-		g.VisitNearbyZeros(s)
+	if g.SpotsLeft <= 0 {
+		return true, Won
 	}
 
-	return false
+	g.VisitNearbyZeros(s)
+
+	return false, Nothing
 }
 
 func (g *Game) FlagSpot(s *Spot) {
@@ -85,21 +99,17 @@ func (g *Game) VisitNearbyZeros(s *Spot) {
 
 	// Visit the nearby spots recursively.
 	for _, surroundingSpot := range s.SurroundingSpots {
-		if surroundingSpot.Type == Bomb {
+		if surroundingSpot.Type != Normal {
 			continue
 		}
-		if surroundingSpot.Type != Hidden {
+		if surroundingSpot.DisplayedType == Flag {
 			continue
 		}
-
 		if g.HasVisitedZero(surroundingSpot) {
 			continue
 		}
 
 		g.VisitSpot(surroundingSpot)
-		if surroundingSpot.NearbyBombs == 0 {
-			g.VisitNearbyZeros(surroundingSpot)
-		}
 	}
 }
 
@@ -116,8 +126,13 @@ func (g *Game) FindSpot(X, Y int) *Spot {
 }
 
 // Generates spots for the game to use.
-func generateSpots(diff int) map[string]*Spot {
+func generateSpots(diff int) (map[string]*Spot, int) {
 	Spots := make(map[string]*Spot)
+
+	// Generate random start position.
+	sx, _ := rand.Int(rand.Reader, big.NewInt(4))
+	sy, _ := rand.Int(rand.Reader, big.NewInt(4))
+	startPositionKey := getKey(int(sx.Int64()), int(sy.Int64()))
 
 	// Generate bomb positions.
 	bombPositions := make(map[string]bool)
@@ -125,8 +140,19 @@ func generateSpots(diff int) map[string]*Spot {
 		// Generate position.
 		x, _ := rand.Int(rand.Reader, big.NewInt(4))
 		y, _ := rand.Int(rand.Reader, big.NewInt(4))
-
 		key := getKey(int(x.Int64()), int(y.Int64()))
+
+		// Repeat until position is valid, or has tried 5 times.
+		tries := 0
+		for (bombPositions[key] || key == startPositionKey) && tries <= 4 {
+			// If this appears in console, don't worry. You only need to worry if it somehow is over 5.
+			fmt.Printf("Invalid bomb position, retrying... (Retry attempt #%d)\n", tries)
+			tries++
+			x, _ = rand.Int(rand.Reader, big.NewInt(4))
+			y, _ = rand.Int(rand.Reader, big.NewInt(4))
+			key = getKey(int(x.Int64()), int(y.Int64()))
+		}
+
 		bombPositions[key] = true
 	}
 
@@ -136,6 +162,7 @@ func generateSpots(diff int) map[string]*Spot {
 			spot := Spot{
 				X:                x,
 				Y:                y,
+				Type:             Normal,
 				NearbyBombs:      0,
 				DisplayedType:    Hidden,
 				SurroundingSpots: []*Spot{},
@@ -183,7 +210,9 @@ func generateSpots(diff int) map[string]*Spot {
 		}
 	}
 
-	return Spots
+	Spots[startPositionKey].DisplayedType = StartHere
+
+	return Spots, len(bombPositions)
 }
 
 // Generates a map key for coordinate pair.

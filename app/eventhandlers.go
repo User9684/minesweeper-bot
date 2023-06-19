@@ -17,6 +17,29 @@ func RegisterEvents() {
 
 	// Command handler.
 	s.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		var ignoreBlacklist bool
+
+		if i.Type == discordgo.InteractionApplicationCommand &&
+			i.ApplicationCommandData().Name == "admin" {
+			ignoreBlacklist = true
+		}
+
+		userID, _ := getUserID(i)
+
+		blacklistData := getBlacklist(userID)
+		if !ignoreBlacklist && blacklistData.Message != "" {
+			if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Flags:   1 << 6,
+					Content: fmt.Sprintf("You have been blacklisted.\nMessage given:\n%s", blacklistData.Message),
+				},
+			}); err != nil {
+				cmdError(i, err)
+			}
+			return
+		}
+
 		switch i.Type {
 		case discordgo.InteractionApplicationCommand:
 			HandleCommand(s, i)
@@ -36,6 +59,7 @@ func HandleCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
+			Flags:   1 << 6,
 			Content: "Invalid command! Deleting...",
 		},
 	})

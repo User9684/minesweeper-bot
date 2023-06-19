@@ -18,12 +18,25 @@ type LearderboardEntry struct {
 
 type GuildData struct {
 	ID          primitive.ObjectID  `bson:"_id"`
-	GuildID     string              `bson:"guildid"`
+	GuildID     string              `bson:"guildID"`
 	Leaderboard []LearderboardEntry `bson:"timeLeaderboard"`
+}
+type Blacklist struct {
+	ID      primitive.ObjectID `bson:"_id"`
+	UserID  string             `bson:"userID"`
+	Message string             `bson:"blacklistMessage"`
+}
+type LeaderboardMessage struct {
+	ID        primitive.ObjectID `bson:"_id"`
+	GuildID   string             `bson:"guildID"`
+	ChannelID string             `bson:"channelID"`
+	MessageID string             `bson:"messageID"`
 }
 
 var Collections = []string{
 	"guilddata",
+	"blacklists",
+	"leaderboardmessages",
 }
 
 func DbInit() *mongo.Client {
@@ -55,13 +68,59 @@ func CollectionCheck(d *mongo.Database) {
 	}
 }
 
+func blacklistUser(userID, message string) *mongo.SingleResult {
+	filter := Blacklist{
+		UserID: userID,
+	}
+	newBlacklist := Blacklist{
+		UserID:  userID,
+		Message: message,
+	}
+	return d.Collection("blacklists").FindOneAndUpdate(context.TODO(), filter, newBlacklist, options.FindOneAndUpdate().SetUpsert(true))
+}
+
+func unblacklistUser(userID string) {
+	filter := Blacklist{
+		UserID: userID,
+	}
+
+	d.Collection("blacklists").FindOneAndDelete(context.TODO(), filter)
+}
+
 func getGuildData(guildID string) GuildData {
 	var guildData GuildData
 	filter := bson.D{{
-		Key:   "guildid",
+		Key:   "guildID",
 		Value: guildID,
 	}}
 	d.Collection("guilddata").FindOne(context.TODO(), filter).Decode(&guildData)
 
 	return guildData
+}
+
+func getBlacklist(userID string) Blacklist {
+	var blacklistInfo Blacklist
+	filter := bson.D{{
+		Key:   "userID",
+		Value: userID,
+	}}
+	d.Collection("blacklists").FindOne(context.TODO(), filter).Decode(&blacklistInfo)
+
+	return blacklistInfo
+}
+
+func getLeaderboardMessages() []LeaderboardMessage {
+	var results []LeaderboardMessage
+	cursor, err := d.Collection("leaderboardmessages").Find(context.TODO(), nil)
+	if err != nil {
+		fmt.Println(err)
+		return results
+	}
+	err = cursor.All(context.TODO(), results)
+	if err != nil {
+		fmt.Println(err)
+		return results
+	}
+
+	return results
 }
