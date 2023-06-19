@@ -25,6 +25,8 @@ const (
 // Outcomes.
 const (
 	Nothing = iota
+	ManualEnd
+	TimedEnd
 	Lost
 	Won
 )
@@ -80,6 +82,12 @@ func (g *Game) VisitSpot(s *Spot) (bool, int) {
 }
 
 func (g *Game) FlagSpot(s *Spot) {
+	// Set displayed type to hidden if already flagged.
+	if s.DisplayedType == Flag {
+		s.DisplayedType = Hidden
+		return
+	}
+	// Prevent the flagging of already visited spots.
 	if s.DisplayedType != Hidden {
 		return
 	}
@@ -181,7 +189,6 @@ func generateSpots(diff int) (map[string]*Spot, int) {
 		baseX := spot.X - 1
 		baseY := spot.Y - 1
 
-		index := 0
 		for y := 0; y <= 2; y++ {
 			for x := 0; x <= 2; x++ {
 				newx := baseX + x
@@ -203,9 +210,7 @@ func generateSpots(diff int) (map[string]*Spot, int) {
 					spot.NearbyBombs++
 				}
 
-				//spot.SurroundingSpots[index] = foundSpot
 				spot.SurroundingSpots = append(spot.SurroundingSpots, foundSpot)
-				index++
 			}
 		}
 	}

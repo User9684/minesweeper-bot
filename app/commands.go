@@ -90,13 +90,18 @@ var Commands = []*discordgo.ApplicationCommand{
 	},
 }
 
+// Register commands using the Commands slice.
 func RegisterCommands(s *discordgo.Session) {
 	registeredCommands := make([]*discordgo.ApplicationCommand, len(Commands))
+
 	for i, v := range Commands {
 		cmd, err := s.ApplicationCommandCreate(s.State.User.ID, "", v)
 		if err != nil {
 			fmt.Printf("Cannot create '%v' command\n%v\n", v.Name, err)
 		}
+
 		registeredCommands[i] = cmd
 	}
+
+	fmt.Printf("Registered %d commands\n", len(registeredCommands))
 }

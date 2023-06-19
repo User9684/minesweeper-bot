@@ -11,8 +11,10 @@ import (
 
 var RequestOption = func(cfg *discordgo.RequestConfig) {}
 
+// Map command names to their respected handler.
 var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
 	"ping": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		// Respond with "PONG" initially.
 		content := "PONG"
 		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -21,24 +23,26 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 			},
 		})
 		if err != nil {
-			cmdError(i, err)
+			cmdError(s, i, err)
 			return
 		}
 
+		// Get the response message.
 		m, err := s.InteractionResponse(i.Interaction, RequestOption)
 		if err != nil {
-			cmdError(i, err)
+			cmdError(s, i, err)
 			return
 		}
 
+		// Calculate latency and update the response message.
 		startID, err := strconv.Atoi(i.ID)
 		if err != nil {
-			cmdError(i, err)
+			cmdError(s, i, err)
 			return
 		}
 		endID, err := strconv.Atoi(m.ID)
 		if err != nil {
-			cmdError(i, err)
+			cmdError(s, i, err)
 			return
 		}
 
@@ -53,18 +57,20 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 			endTS-startTS,
 		)
 
+		// Update the response message with the calculated latency.
 		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 			Content: &content,
 		}); err != nil {
-			cmdError(i, err)
+			cmdError(s, i, err)
 			return
 		}
 	},
 	"minesweeper": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		// Convert options to map
+		// Convert options to map.
 		optionMap := mapOptions(i.ApplicationCommandData().Options)
 		userID, isGuild := getUserID(i)
 
+		// Check if the user already has a game open.
 		if game, ok := Games[userID]; ok {
 			var (
 				location  = i.GuildID
@@ -87,12 +93,13 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 			return
 		}
 
+		// Respond with a deferred message update initially.
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
 		})
 
+		// Create a new game based on the selected difficulty.
 		var Game *minesweeper.Game
-
 		switch optionMap["difficulty"].Value {
 		case "easy":
 			Game = minesweeper.NewGame(minesweeper.Easy)
@@ -102,6 +109,7 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 			Game = minesweeper.NewGame(minesweeper.Hard)
 		}
 
+		// Create a new MinesweeperGame object to store game information.
 		newGame := MinesweeperGame{
 			UserID:     userID,
 			GuildID:    i.GuildID,
@@ -110,20 +118,20 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 			Difficulty: fmt.Sprintf("%v", optionMap["difficulty"].Value),
 		}
 
+		// Send the initial message with the game board.
 		content := "Click the <:clickme:1119511692825604096> to start the game!"
 		board := GenerateBoard(&newGame, true, false)
-
 		msg, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 			Content:    &content,
 			Components: &board,
 		})
 		if err != nil {
-			cmdError(i, err)
+			cmdError(s, i, err)
 			return
 		}
 
+		// Add flag and end game buttons to the message.
 		flagRow := discordgo.ActionsRow{}
-
 		flagRow.Components = append(flagRow.Components, &discordgo.Button{
 			CustomID: "minesweeperflagbutton",
 			Style:    discordgo.DangerButton,
@@ -137,25 +145,27 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 			Label:    "End game",
 		})
 
+		// Send the flag and end game buttons as a separate message.
 		flagMsg, err := s.ChannelMessageSendComplex(msg.ChannelID, &discordgo.MessageSend{
-			Reference: msg.Reference(),
-			Components: []discordgo.MessageComponent{
-				flagRow,
-			},
+			Reference:  msg.Reference(),
+			Components: []discordgo.MessageComponent{flagRow},
 		}, RequestOption)
 		if err != nil {
-			cmdError(i, err)
+			cmdError(s, i, err)
 			return
 		}
 
+		// Update the new game object with message IDs.
 		newGame.BoardID = msg.ID
 		newGame.FlagID = flagMsg.ID
 
+		// Store the new game object in the Games map.
 		Games[userID] = &newGame
 	},
 	"admin": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		userID, _ := getUserID(i)
 
+		// Check if the user is an admin.
 		if a, ok := Admins[userID]; !a || !ok {
 			if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -164,11 +174,12 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 					Content: "No.",
 				},
 			}); err != nil {
-				cmdError(i, err)
+				cmdError(s, i, err)
 			}
 
 			return
 		}
+
 		subcommand := i.Interaction.ApplicationCommandData().Options[0]
 		optionMap := mapOptions(subcommand.Options)
 
@@ -194,7 +205,7 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 					Content: replyContent,
 				},
 			}); err != nil {
-				cmdError(i, err)
+				cmdError(s, i, err)
 			}
 
 		case "unblacklist":
@@ -210,20 +221,25 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 					Content: replyContent,
 				},
 			}); err != nil {
-				cmdError(i, err)
+				cmdError(s, i, err)
 			}
 
 		case "leaderboardmsg":
-			// Not setup yet, will exist in the next commit.
+			// Not set up yet, will exist in the next commit.
 		}
 	},
 }
 
+// Map unique IDs of components to their respected handler.
 var ComponentHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
 	"minesweeperflagbutton": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		// Get user ID from the interaction.
 		userID, _ := getUserID(i)
+
+		// Check if the user has a game open.
 		game, ok := Games[userID]
 		if !ok {
+			// User does not have a game open, send an error message.
 			replyContent := "You don't have a game open!"
 			go s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -235,7 +251,9 @@ var ComponentHandlers = map[string]func(s *discordgo.Session, i *discordgo.Inter
 			return
 		}
 
+		// Check if the flag button is associated with the user's game.
 		if game.FlagID != i.Message.ID {
+			// Flag button does not belong to the user's game, send an error message.
 			replyContent := "This is not your game."
 			go s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -247,15 +265,15 @@ var ComponentHandlers = map[string]func(s *discordgo.Session, i *discordgo.Inter
 			return
 		}
 
-		// Response to interaction.
+		// Respond to the interaction with a deferred message update.
 		go s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseDeferredMessageUpdate,
 		})
 
-		// Toggle flag.
+		// Toggle the flag status.
 		game.flagEnabled = !game.flagEnabled
 
-		// Create the new button.
+		// Create the new flag button.
 		flagRow := discordgo.ActionsRow{}
 		flagButton := &discordgo.Button{
 			CustomID: "minesweeperflagbutton",
@@ -271,31 +289,36 @@ var ComponentHandlers = map[string]func(s *discordgo.Session, i *discordgo.Inter
 			Label:    "End game",
 		}
 
+		// Update the label and style of the flag button based on the flag status.
 		if game.flagEnabled {
 			flagButton.Label = "ON"
 			flagButton.Style = discordgo.SuccessButton
 		}
 		flagRow.Components = append(flagRow.Components, flagButton, endGameButton)
 
-		// Edit old flag message with new button.
+		// Edit the old flag message with the new button.
 		if _, err := s.ChannelMessageEditComplex(&discordgo.MessageEdit{
 			Channel:    game.ChannelID,
 			ID:         game.FlagID,
 			Components: []discordgo.MessageComponent{flagRow},
 		}); err != nil {
-			cmdError(i, err)
+			cmdError(s, i, err)
 			return
 		}
 	},
 	"endgamebutton": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		// Response to interaction.
+		// Respond to the interaction with a deferred message update.
 		go s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseDeferredMessageUpdate,
 		})
+
+		// Get user ID from the interaction.
 		userID, _ := getUserID(i)
 
+		// Check if the user has a game open.
 		game, ok := Games[userID]
 		if !ok {
+			// User does not have a game open, send an error message.
 			replyContent := "You don't have a game open!"
 			go s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -307,11 +330,14 @@ var ComponentHandlers = map[string]func(s *discordgo.Session, i *discordgo.Inter
 			return
 		}
 
-		HandleGameEnd(s, game, minesweeper.Nothing)
+		// Handle the end of the game.
+		HandleGameEnd(s, game, minesweeper.ManualEnd)
 	},
 }
 
+// Handle user interactions to the minesweeper board.
 func HandleBoard(s *discordgo.Session, i *discordgo.InteractionCreate, positionx, positiony int) {
+	// Retrieve the user ID and check if a game exists for the user
 	userID, _ := getUserID(i)
 	game, ok := Games[userID]
 	if !ok {
@@ -326,6 +352,7 @@ func HandleBoard(s *discordgo.Session, i *discordgo.InteractionCreate, positionx
 		return
 	}
 
+	// Check if the game's board ID matches the ID of the triggering message
 	if game.BoardID != i.Message.ID {
 		replyContent := "This is not your game."
 		go s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -338,19 +365,24 @@ func HandleBoard(s *discordgo.Session, i *discordgo.InteractionCreate, positionx
 		return
 	}
 
+	// Set the start time if it hasn't been set yet
 	if game.StartTime.IsZero() {
 		game.StartTime = time.Now()
 	}
 
+	// Find the spot on the game board based on the provided coordinates
 	spot := game.Game.FindSpot(positionx, positiony)
 
+	// Perform the appropriate action based on the flagEnabled flag
 	switch game.flagEnabled {
 	case true:
 		game.Game.FlagSpot(spot)
 
 	case false:
+		// Visit the spot and check if the game ends
 		gameEnd, event := game.Game.VisitSpot(spot)
 		if gameEnd {
+			// Handle the game end and respond with a deferred message update
 			HandleGameEnd(s, game, event)
 			go s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseDeferredMessageUpdate,
@@ -359,26 +391,31 @@ func HandleBoard(s *discordgo.Session, i *discordgo.InteractionCreate, positionx
 		}
 	}
 
-	content := "here you go >~<"
+	// Update the game board message with the new content and components
+	content := "Here you go >~<"
 	board := GenerateBoard(game, false, false)
-
-	if _, err := s.ChannelMessageEditComplex(&discordgo.MessageEdit{
+	editMessage := &discordgo.MessageEdit{
 		Channel:    game.ChannelID,
 		ID:         game.BoardID,
 		Content:    &content,
 		Components: board,
-	}); err != nil {
-		cmdError(i, err)
+	}
+
+	// Edit the message and handle any errors
+	if _, err := s.ChannelMessageEditComplex(editMessage); err != nil {
+		cmdError(s, i, err)
 		return
 	}
 
+	// Respond with a deferred message update
 	go s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseDeferredMessageUpdate,
 	})
 }
 
+// mapOptions maps the options of an interaction to a map for easier access
 func mapOptions(options []*discordgo.ApplicationCommandInteractionDataOption) map[string]*discordgo.ApplicationCommandInteractionDataOption {
-	var optionMap = make(map[string]*discordgo.ApplicationCommandInteractionDataOption, len(options))
+	optionMap := make(map[string]*discordgo.ApplicationCommandInteractionDataOption, len(options))
 
 	for _, opt := range options {
 		optionMap[opt.Name] = opt
@@ -387,9 +424,11 @@ func mapOptions(options []*discordgo.ApplicationCommandInteractionDataOption) ma
 	return optionMap
 }
 
+// getUserID retrieves the user ID from an interaction and determines if it's in a guild
 func getUserID(i *discordgo.InteractionCreate) (string, bool) {
 	var inGuild bool
 	var userID string
+
 	if i.User == nil {
 		userID = i.Member.User.ID
 		inGuild = true
@@ -402,16 +441,18 @@ func getUserID(i *discordgo.InteractionCreate) (string, bool) {
 	return userID, inGuild
 }
 
-func cmdError(i *discordgo.InteractionCreate, err error) {
+// cmdError handles and logs command errors and responds to the interaction with an error message
+func cmdError(s *discordgo.Session, i *discordgo.InteractionCreate, err error) {
 	if err == nil {
 		return
 	}
+
 	fmt.Println(err)
 
 	go s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
-			Content: fmt.Sprintf("An error occured! \n```%s```", err.Error()),
+			Content: fmt.Sprintf("An error occurred!\n```%s```", err.Error()),
 		},
 	})
 }

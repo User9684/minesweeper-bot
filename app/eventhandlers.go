@@ -7,6 +7,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
+// RegisterEvents registers the event handlers.
 func RegisterEvents() {
 	// Ready event.
 	s.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
@@ -15,7 +16,7 @@ func RegisterEvents() {
 		fmt.Printf("Logged in as: %v#%v\nIntents: %v\n", s.State.User.Username, s.State.User.Discriminator, intents)
 	})
 
-	// Command handler.
+	// Interaction handler.
 	s.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		var ignoreBlacklist bool
 
@@ -35,7 +36,7 @@ func RegisterEvents() {
 					Content: fmt.Sprintf("You have been blacklisted.\nMessage given:\n%s", blacklistData.Message),
 				},
 			}); err != nil {
-				cmdError(i, err)
+				cmdError(s, i, err)
 			}
 			return
 		}
@@ -49,26 +50,32 @@ func RegisterEvents() {
 	})
 }
 
+// Handle application command interactions.
 func HandleCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	if h, ok := CommandHandlers[i.ApplicationCommandData().Name]; ok {
-		go h(s, i)
+	userid, _ := getUserID(i)
+	commandData := i.ApplicationCommandData()
+	if handler, ok := CommandHandlers[commandData.Name]; ok {
+		go handler(s, i)
 		return
 	}
 
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Flags:   1 << 6,
 			Content: "Invalid command! Deleting...",
 		},
-	})
+	}); err != nil {
+		cmdError(s, i, err)
+	}
 
 	commandID := i.Interaction.ApplicationCommandData().ID
 
-	fmt.Printf("Invalid command detected.\nCommand ID: %s\nCommand used by: %s\n", commandID, i.Interaction.Member.User.ID)
+	fmt.Printf("Invalid command detected.\nCommand ID: %s\nCommand used by: %s\n", commandID, userid)
 	s.ApplicationCommandDelete(s.State.User.ID, "", commandID)
 }
 
+// Handle message component interactions.
 func HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	customID := i.MessageComponentData().CustomID
 
@@ -91,8 +98,8 @@ func HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 
-	if h, ok := ComponentHandlers[customID]; ok {
-		go h(s, i)
+	if handler, ok := ComponentHandlers[customID]; ok {
+		go handler(s, i)
 		return
 	}
 
