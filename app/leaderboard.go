@@ -71,6 +71,7 @@ func addToLeaderboard(guildID string, difficulty int, newEntry LeaderboardEntry)
 		Key:   "guildID",
 		Value: guildID,
 	}}
+
 	newData := GuildData{
 		GuildID: guildID,
 	}
@@ -84,7 +85,21 @@ func addToLeaderboard(guildID string, difficulty int, newEntry LeaderboardEntry)
 		newData.Leaderboard.Hard = currentLeaderboard
 	}
 
-	d.Collection("guilddata").FindOneAndUpdate(context.TODO(), filter, newData, options.FindOneAndUpdate().SetUpsert(true))
+	data, err := bson.Marshal(newData)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	d.Collection("guilddata").
+		FindOneAndUpdate(
+			context.TODO(),
+			filter,
+			bson.M{
+				"$set": data,
+			},
+			options.FindOneAndUpdate().SetUpsert(true),
+		)
 
 	b, _ := json.MarshalIndent(currentLeaderboard, "", "	")
 	fmt.Println(string(b))

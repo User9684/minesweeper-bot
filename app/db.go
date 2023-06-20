@@ -75,7 +75,7 @@ func CollectionCheck(d *mongo.Database) {
 	}
 }
 
-func blacklistUser(userID, message string) *mongo.SingleResult {
+func blacklistUser(userID, message string) {
 	filter := Blacklist{
 		UserID: userID,
 	}
@@ -83,7 +83,19 @@ func blacklistUser(userID, message string) *mongo.SingleResult {
 		UserID:  userID,
 		Message: message,
 	}
-	return d.Collection("blacklists").FindOneAndUpdate(context.TODO(), filter, newBlacklist, options.FindOneAndUpdate().SetUpsert(true))
+	data, err := bson.Marshal(newBlacklist)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	d.Collection("blacklists").FindOneAndUpdate(
+		context.TODO(),
+		filter,
+		data,
+		options.FindOneAndUpdate().SetUpsert(true),
+	)
+
+	return
 }
 
 func unblacklistUser(userID string) {
