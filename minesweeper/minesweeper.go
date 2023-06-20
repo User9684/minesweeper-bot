@@ -60,7 +60,7 @@ func NewGame(dif int) *Game {
 }
 
 func (g *Game) VisitSpot(s *Spot) (bool, int) {
-	if s.Type == Flag {
+	if s.DisplayedType != Hidden && s.DisplayedType != StartHere {
 		return false, Nothing
 	}
 	if s.Type == Bomb {
@@ -76,7 +76,13 @@ func (g *Game) VisitSpot(s *Spot) (bool, int) {
 		return true, Won
 	}
 
-	g.VisitNearbyZeros(s)
+	wonGame := false
+	if s.NearbyBombs == 0 {
+		wonGame = g.VisitNearbyZeros(s)
+	}
+	if wonGame {
+		return true, Won
+	}
 
 	return false, Nothing
 }
@@ -97,11 +103,7 @@ func (g *Game) FlagSpot(s *Spot) {
 }
 
 // Visits all the nearby zeros and then the zeros nearby those zeros, just like in real minesweeper.
-func (g *Game) VisitNearbyZeros(s *Spot) {
-	if s.NearbyBombs != 0 {
-		return
-	}
-
+func (g *Game) VisitNearbyZeros(s *Spot) bool {
 	// Add the current spot to the list of visited zeros.
 	g.VisitedZeros[getKey(s.X, s.Y)] = true
 
@@ -117,8 +119,13 @@ func (g *Game) VisitNearbyZeros(s *Spot) {
 			continue
 		}
 
-		g.VisitSpot(surroundingSpot)
+		_, outcome := g.VisitSpot(surroundingSpot)
+		if outcome == Won {
+			return true
+		}
 	}
+
+	return false
 }
 
 func (g *Game) HasVisitedZero(s *Spot) bool {
@@ -142,6 +149,21 @@ func generateSpots(diff int) (map[string]*Spot, int) {
 	sy, _ := rand.Int(rand.Reader, big.NewInt(4))
 	startPositionKey := getKey(int(sx.Int64()), int(sy.Int64()))
 
+	ignoredPositions := map[string]bool{}
+	for y := 0; y <= 2; y++ {
+		for x := 0; x <= 2; x++ {
+			newx := int(sx.Int64()) + x
+			newy := int(sy.Int64()) + y
+			if newx >= 5 || newx < 0 {
+				continue
+			}
+			if newy >= 5 || newy < 0 {
+				continue
+			}
+			ignoredPositions[getKey(newx, newy)] = true
+		}
+	}
+
 	// Generate bomb positions.
 	bombPositions := make(map[string]bool)
 	for i := 0; i <= 4+(diff*2); i++ {
@@ -152,7 +174,7 @@ func generateSpots(diff int) (map[string]*Spot, int) {
 
 		// Repeat until position is valid, or has tried 5 times.
 		tries := 0
-		for (bombPositions[key] || key == startPositionKey) && tries <= 4 {
+		for (bombPositions[key] || ignoredPositions[key]) && tries <= 4 {
 			// If this appears in console, don't worry. You only need to worry if it somehow is over 5.
 			fmt.Printf("Invalid bomb position, retrying... (Retry attempt #%d)\n", tries)
 			tries++

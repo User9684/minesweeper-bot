@@ -61,7 +61,7 @@ func main() {
 	// Mongo setup.
 	fmt.Println("Connecting to mongo...")
 	c = DbInit()
-	d = c.Database("ABL")
+	d = c.Database("minesweeper")
 	fmt.Println("Verifying all collections...")
 	CollectionCheck(d)
 	// Config setup.

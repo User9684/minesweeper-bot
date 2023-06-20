@@ -60,6 +60,32 @@ var Commands = []*discordgo.ApplicationCommand{
 					},
 				},
 			},
+			{
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
+				Name:        "win",
+				Description: "Force a minesweeper win for a user",
+				Options: []*discordgo.ApplicationCommandOption{
+					{
+						Name:        "user",
+						Description: "winner winner chicken dinner",
+						Type:        discordgo.ApplicationCommandOptionUser,
+						Required:    true,
+					},
+				},
+			},
+			{
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
+				Name:        "reveal",
+				Description: "Reveal all the spots for a user's game",
+				Options: []*discordgo.ApplicationCommandOption{
+					{
+						Name:        "user",
+						Description: "user's game to view",
+						Type:        discordgo.ApplicationCommandOptionUser,
+						Required:    true,
+					},
+				},
+			},
 		},
 	},
 	{

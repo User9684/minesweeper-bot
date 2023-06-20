@@ -11,11 +11,12 @@ import (
 )
 
 // Handles the end of the game and sends the appropriate message.
-func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int) {
+func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int, addToBoard bool) {
 	// Calculate the time taken in the game and format it as a human-readable string.
+	gameDuration := time.Now().Sub(game.StartTime)
 	timeString := fmt.Sprintf(
 		"\nYour time was %s",
-		humanizetime.HumanizeDuration(time.Now().Sub(game.StartTime), 3),
+		humanizetime.HumanizeDuration(gameDuration, 3),
 	)
 
 	if game.StartTime.IsZero() {
@@ -26,13 +27,26 @@ func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int) {
 	content := fmt.Sprintf("<@!%s> ", game.UserID)
 	switch event {
 	case minesweeper.ManualEnd:
-		content += "you ended the game, wimp."
+		content += getRandomMessage(SarcasticGiveUpMessages)
 	case minesweeper.TimedEnd:
-		content += "bro there is no way it takes you that long."
-	case minesweeper.Won:
-		content += "You won, woohoo."
+		content += getRandomMessage(SarcasticTimeOverMessages)
 	case minesweeper.Lost:
-		content += "you fuckin lost LOL"
+		content += getRandomMessage(SarcasticLostMessages)
+	case minesweeper.Won:
+		messages := getMessages(int64(gameDuration.Seconds()))
+		if gameDuration.Seconds() <= 0.5 {
+			messages = SarcasticOneClickMessages
+			addToBoard = false
+		}
+
+		content += getRandomMessage(messages)
+		if addToBoard {
+			addToLeaderboard(game.GuildID, game.Game.Difficulty, LeaderboardEntry{
+				Time:   gameDuration.Seconds(),
+				UserID: game.UserID,
+				Spot:   0,
+			})
+		}
 	}
 
 	// Send a message to the channel with the game result and time information.

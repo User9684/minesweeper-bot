@@ -226,6 +226,64 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 
 		case "leaderboardmsg":
 			// Not set up yet, will exist in the next commit.
+		case "win":
+			target := optionMap["user"].UserValue(s).ID
+			game, ok := Games[target]
+			// Check if the user has a game open.
+			if !ok {
+				if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Flags:   1 << 6,
+						Content: "That user doesn't have a game open!",
+					},
+				}); err != nil {
+					cmdError(s, i, err)
+				}
+				return
+			}
+
+			replyContent := fmt.Sprintf("Forcewon `%s`'s game", target)
+
+			if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Flags:   1 << 6,
+					Content: replyContent,
+				},
+			}); err != nil {
+				cmdError(s, i, err)
+			}
+
+			HandleGameEnd(s, game, minesweeper.Won, false)
+		case "reveal":
+			target := optionMap["user"].UserValue(s).ID
+			game, ok := Games[target]
+			// Check if the user has a game open.
+			if !ok {
+				if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Flags:   1 << 6,
+						Content: "That user doesn't have a game open!",
+					},
+				}); err != nil {
+					cmdError(s, i, err)
+				}
+				return
+			}
+
+			board := GenerateBoard(game, false, true)
+			if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Flags:      1 << 6,
+					Content:    "👁️",
+					Components: board,
+				},
+			}); err != nil {
+				cmdError(s, i, err)
+			}
 		}
 	},
 }
@@ -331,7 +389,7 @@ var ComponentHandlers = map[string]func(s *discordgo.Session, i *discordgo.Inter
 		}
 
 		// Handle the end of the game.
-		HandleGameEnd(s, game, minesweeper.ManualEnd)
+		HandleGameEnd(s, game, minesweeper.ManualEnd, false)
 	},
 }
 
@@ -383,7 +441,7 @@ func HandleBoard(s *discordgo.Session, i *discordgo.InteractionCreate, positionx
 		gameEnd, event := game.Game.VisitSpot(spot)
 		if gameEnd {
 			// Handle the game end and respond with a deferred message update
-			HandleGameEnd(s, game, event)
+			HandleGameEnd(s, game, event, true)
 			go s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseDeferredMessageUpdate,
 			})

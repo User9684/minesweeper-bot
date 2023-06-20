@@ -11,15 +11,22 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-type LearderboardEntry struct {
-	UserID string `bson:"userId"`
-	Time   int    `bson:"time"`
+type LeaderboardEntry struct {
+	UserID string  `bson:"userId"`
+	Time   float64 `bson:"time"`
+	Spot   int     `bson:"spot"`
+}
+
+type Leaderboards struct {
+	Easy   []LeaderboardEntry `bson:"easy"`
+	Medium []LeaderboardEntry `bson:"Medium"`
+	Hard   []LeaderboardEntry `bson:"hard"`
 }
 
 type GuildData struct {
-	ID          primitive.ObjectID  `bson:"_id"`
-	GuildID     string              `bson:"guildID"`
-	Leaderboard []LearderboardEntry `bson:"timeLeaderboard"`
+	ID          primitive.ObjectID `bson:"_id"`
+	GuildID     string             `bson:"guildID"`
+	Leaderboard Leaderboards       `bson:"timeLeaderboard"`
 }
 type Blacklist struct {
 	ID      primitive.ObjectID `bson:"_id"`
