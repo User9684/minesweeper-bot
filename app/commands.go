@@ -114,6 +114,38 @@ var Commands = []*discordgo.ApplicationCommand{
 			},
 		},
 	},
+	{
+		Name:        "leaderboard",
+		Description: "Gets the leaderboard for the current server, or global.",
+		Options: []*discordgo.ApplicationCommandOption{
+			{
+				Type:        discordgo.ApplicationCommandOptionString,
+				Name:        "difficulty",
+				Description: "Difficulty level",
+				Required:    true,
+				Choices: []*discordgo.ApplicationCommandOptionChoice{
+					{
+						Name:  "Easy",
+						Value: "easy",
+					},
+					{
+						Name:  "Medium",
+						Value: "medium",
+					},
+					{
+						Name:  "Hard",
+						Value: "hard",
+					},
+				},
+			},
+			{
+				Type:        discordgo.ApplicationCommandOptionBoolean,
+				Name:        "global",
+				Description: "Get the global leaderboard",
+				Required:    false,
+			},
+		},
+	},
 }
 
 // Register commands using the Commands slice.

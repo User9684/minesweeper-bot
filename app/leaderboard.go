@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"main/minesweeper"
 
@@ -43,6 +42,9 @@ func getLeaderboard(guildID string, difficulty int) []LeaderboardEntry {
 }
 
 func addToLeaderboard(guildID string, difficulty int, newEntry LeaderboardEntry) {
+	// Add to global leaderboard.
+	addToLeaderboard("global", difficulty, newEntry)
+
 	currentLeaderboard := getLeaderboard(guildID, difficulty)
 	// Remove duplicate ID if new is shorter in length.
 	for index, leaderboardEntry := range currentLeaderboard {
@@ -50,31 +52,32 @@ func addToLeaderboard(guildID string, difficulty int, newEntry LeaderboardEntry)
 			continue
 		}
 		if leaderboardEntry.Time < newEntry.Time {
-			continue
+			// Return because the new entry is longer than the past one.
+			return
 		}
 		currentLeaderboard = append(currentLeaderboard[:index], currentLeaderboard[index+1:]...)
 	}
 
-	for _, leaderboardEntry := range currentLeaderboard {
+	newEntry.Spot = len(currentLeaderboard)
+
+	for i, leaderboardEntry := range currentLeaderboard {
 		if leaderboardEntry.Time > newEntry.Time {
-			newEntry.Spot = leaderboardEntry.Spot
-			leaderboardEntry.Spot++
+			newEntry.Spot--
+			currentLeaderboard[i].Spot++
 			continue
 		}
-		newEntry.Spot++
 		break
 	}
 
-	currentLeaderboard = orderBySpot(append(currentLeaderboard, newEntry))
+	currentLeaderboard = append(currentLeaderboard, newEntry)
+	currentLeaderboard = orderBySpot(currentLeaderboard)[:10]
 
 	filter := bson.D{{
 		Key:   "guildID",
 		Value: guildID,
 	}}
 
-	newData := GuildData{
-		GuildID: guildID,
-	}
+	newData := getGuildData(guildID)
 
 	switch difficulty {
 	case minesweeper.Easy:
@@ -91,16 +94,22 @@ func addToLeaderboard(guildID string, difficulty int, newEntry LeaderboardEntry)
 		return
 	}
 
-	d.Collection("guilddata").
-		FindOneAndUpdate(
-			context.TODO(),
-			filter,
-			bson.M{
-				"$set": data,
-			},
-			options.FindOneAndUpdate().SetUpsert(true),
-		)
+	var update bson.M
+	if err := bson.Unmarshal(data, &update); err != nil {
+		return
+	}
 
-	b, _ := json.MarshalIndent(currentLeaderboard, "", "	")
-	fmt.Println(string(b))
+	request := d.Collection("guilddata").FindOneAndUpdate(
+		context.TODO(),
+		filter,
+		bson.D{{
+			Key:   "$set",
+			Value: update,
+		}},
+		options.FindOneAndUpdate().SetUpsert(true),
+	)
+
+	if err := request.Decode(&newData); err != nil {
+		fmt.Println(err)
+	}
 }

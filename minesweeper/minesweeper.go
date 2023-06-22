@@ -45,6 +45,7 @@ type Game struct {
 	VisitedZeros map[string]bool
 	Difficulty   int
 	SpotsLeft    int
+	TotalBombs   int
 }
 
 func NewGame(dif int) *Game {
@@ -54,6 +55,7 @@ func NewGame(dif int) *Game {
 		VisitedZeros: make(map[string]bool),
 		Difficulty:   dif,
 		SpotsLeft:    (5 * 5) - bombCount,
+		TotalBombs:   bombCount,
 	}
 
 	return game

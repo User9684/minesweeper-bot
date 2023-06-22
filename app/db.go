@@ -76,9 +76,10 @@ func CollectionCheck(d *mongo.Database) {
 }
 
 func blacklistUser(userID, message string) {
-	filter := Blacklist{
-		UserID: userID,
-	}
+	filter := bson.D{{
+		Key:   "userID",
+		Value: userID,
+	}}
 	newBlacklist := Blacklist{
 		UserID:  userID,
 		Message: message,
@@ -88,22 +89,44 @@ func blacklistUser(userID, message string) {
 		fmt.Println(err)
 		return
 	}
-	d.Collection("blacklists").FindOneAndUpdate(
+
+	var update bson.M
+	if err := bson.Unmarshal(data, &update); err != nil {
+		return
+	}
+
+	request := d.Collection("blacklists").FindOneAndUpdate(
 		context.TODO(),
 		filter,
-		data,
+		bson.D{{
+			Key:   "$set",
+			Value: update,
+		}},
 		options.FindOneAndUpdate().SetUpsert(true),
 	)
+
+	if err := request.Decode(&newBlacklist); err != nil {
+		fmt.Println(err)
+	}
 
 	return
 }
 
 func unblacklistUser(userID string) {
-	filter := Blacklist{
-		UserID: userID,
-	}
+	filter := bson.D{{
+		Key:   "userID",
+		Value: userID,
+	}}
 
-	d.Collection("blacklists").FindOneAndDelete(context.TODO(), filter)
+	request := d.Collection("blacklists").FindOneAndDelete(
+		context.TODO(),
+		filter,
+		options.FindOneAndDelete(),
+	)
+
+	if err := request.Decode(&filter); err != nil {
+		fmt.Println(err)
+	}
 }
 
 func getGuildData(guildID string) GuildData {
@@ -113,6 +136,7 @@ func getGuildData(guildID string) GuildData {
 		Value: guildID,
 	}}
 	d.Collection("guilddata").FindOne(context.TODO(), filter).Decode(&guildData)
+	guildData.GuildID = guildID
 
 	return guildData
 }

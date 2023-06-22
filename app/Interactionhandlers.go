@@ -2,8 +2,11 @@ package main
 
 import (
 	"fmt"
+	"main/humanizetime"
 	"main/minesweeper"
+	"math/rand"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -286,6 +289,84 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 			}
 		}
 	},
+	"leaderboard": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		// Respond with a deferred message update initially.
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+		})
+
+		optionMap := mapOptions(i.ApplicationCommandData().Options)
+		_, isGuild := getUserID(i)
+
+		targetGuild := "global"
+		guildName := targetGuild
+
+		if isGuild {
+			targetGuild = i.GuildID
+			guild, err := s.Guild(i.GuildID, RequestOption)
+			if err != nil {
+				cmdError(s, i, err)
+				return
+			}
+			guildName = fmt.Sprintf("%s's", guild.Name)
+		}
+
+		if v, ok := optionMap["global"]; ok && v.BoolValue() {
+			targetGuild = "global"
+			guildName = targetGuild
+		}
+
+		var difficulty int
+		switch optionMap["difficulty"].Value {
+		case "easy":
+			difficulty = minesweeper.Easy
+		case "medium":
+			difficulty = minesweeper.Medium
+		case "hard":
+			difficulty = minesweeper.Hard
+		}
+
+		leaderboard := getLeaderboard(targetGuild, difficulty)
+
+		r := rand.Intn(255)
+		g := rand.Intn(255)
+		b := rand.Intn(255)
+		colorInt := (r << 16) + (g << 8) + b
+
+		embed := discordgo.MessageEmbed{
+			Type:        discordgo.EmbedTypeRich,
+			Title:       fmt.Sprintf("%s Leaderboard", guildName),
+			Description: fmt.Sprintf("Leaderboard for **%s** mode", strings.ToUpper(optionMap["difficulty"].StringValue())),
+			Color:       colorInt,
+		}
+
+		for _, entry := range leaderboard {
+			userString := entry.UserID
+			user, err := s.User(entry.UserID, RequestOption)
+			if err == nil {
+				userString = user.Username
+			}
+
+			duration, err := time.ParseDuration(fmt.Sprintf("%vs", entry.Time))
+			if err != nil {
+				cmdError(s, i, err)
+				return
+			}
+
+			embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
+				Name:   userString,
+				Value:  humanizetime.HumanizeDuration(duration, 3),
+				Inline: false,
+			})
+		}
+
+		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+			Embeds: &[]*discordgo.MessageEmbed{&embed},
+		}); err != nil {
+			cmdError(s, i, err)
+		}
+
+	},
 }
 
 // Map unique IDs of components to their respected handler.
@@ -450,7 +531,7 @@ func HandleBoard(s *discordgo.Session, i *discordgo.InteractionCreate, positionx
 	}
 
 	// Update the game board message with the new content and components
-	content := "Here you go >~<"
+	content := fmt.Sprintf("Here you go >~<\nTotal bombs: **%d**", game.Game.TotalBombs)
 	board := GenerateBoard(game, false, false)
 	editMessage := &discordgo.MessageEdit{
 		Channel:    game.ChannelID,

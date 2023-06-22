@@ -44,7 +44,7 @@ func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int, addTo
 			addToLeaderboard(game.GuildID, game.Game.Difficulty, LeaderboardEntry{
 				Time:   gameDuration.Seconds(),
 				UserID: game.UserID,
-				Spot:   0,
+				Spot:   11,
 			})
 		}
 	}
