@@ -1,8 +1,7 @@
 package main
 
 import (
-	"crypto/rand"
-	"math/big"
+	"math/rand"
 )
 
 // Map seconds spent to random sarcastic messages.
@@ -261,8 +260,9 @@ var SarcasticGiveUpMessages = []string{
 }
 
 func getRandomMessage(messages []string) string {
-	index, _ := rand.Int(rand.Reader, big.NewInt(4))
-	return messages[index.Int64()]
+
+	index := rand.Intn(len(messages))
+	return messages[index]
 }
 
 var timeOrder = []int64{int64(0), int64(5), int64(10), int64(15), int64(20), int64(30), int64(40), int64(50), int64(60), int64(70), int64(90), int64(60 * 2), int64(60 * 5), int64(60 * 10), int64(60 * 15), int64(60 * 20), int64(60 * 30), int64(60 * 40), int64(60 * 50)}

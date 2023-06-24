@@ -2,11 +2,8 @@ package main
 
 import (
 	"fmt"
-	"main/humanizetime"
 	"main/minesweeper"
-	"math/rand"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -165,6 +162,45 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 		// Store the new game object in the Games map.
 		Games[userID] = &newGame
 	},
+	"leaderboard": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		// Respond with a deferred message update initially.
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+		})
+
+		optionMap := mapOptions(i.ApplicationCommandData().Options)
+		_, isGuild := getUserID(i)
+
+		targetGuild := "global"
+		guildName := targetGuild
+
+		if isGuild {
+			targetGuild = i.GuildID
+			guild, err := s.Guild(i.GuildID, RequestOption)
+			if err != nil {
+				cmdError(s, i, err)
+				return
+			}
+			guildName = fmt.Sprintf("%s's", guild.Name)
+		}
+
+		if v, ok := optionMap["global"]; ok && v.BoolValue() {
+			targetGuild = "global"
+			guildName = targetGuild
+		}
+
+		embed, err := generateLeaderboardEmbed(targetGuild, guildName, optionMap["difficulty"].StringValue())
+		if err != nil {
+			cmdError(s, i, err)
+			return
+		}
+
+		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+			Embeds: &[]*discordgo.MessageEmbed{&embed},
+		}); err != nil {
+			cmdError(s, i, err)
+		}
+	},
 	"admin": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		userID, _ := getUserID(i)
 
@@ -228,7 +264,44 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 			}
 
 		case "leaderboardmsg":
-			// Not set up yet, will exist in the next commit.
+			// Respond with a deferred message update initially.
+			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Flags: 1 << 6,
+				},
+			})
+			match := MessageLinkRegex.FindStringSubmatch(optionMap["message"].StringValue())
+
+			if match[1] == "@me" {
+				content := "Automatic leaderboard editing not supported in DMs!"
+				if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+					Content: &content,
+				}); err != nil {
+					cmdError(s, i, err)
+				}
+				return
+			}
+
+			var difficulty int
+			switch optionMap["difficulty"].Value {
+			case "easy":
+				difficulty = minesweeper.Easy
+			case "medium":
+				difficulty = minesweeper.Medium
+			case "hard":
+				difficulty = minesweeper.Hard
+			}
+
+			addLeaderboardMessage(match[1], match[2], match[3], difficulty)
+
+			content := fmt.Sprintf("Added %s to automatic editing for difficulty **%s**!", optionMap["message"].StringValue(), optionMap["difficulty"].StringValue())
+			if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+				Content: &content,
+			}); err != nil {
+				cmdError(s, i, err)
+			}
+
 		case "win":
 			target := optionMap["user"].UserValue(s).ID
 			game, ok := Games[target]
@@ -259,6 +332,7 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 			}
 
 			HandleGameEnd(s, game, minesweeper.Won, false)
+
 		case "reveal":
 			target := optionMap["user"].UserValue(s).ID
 			game, ok := Games[target]
@@ -287,85 +361,18 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 			}); err != nil {
 				cmdError(s, i, err)
 			}
-		}
-	},
-	"leaderboard": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		// Respond with a deferred message update initially.
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
-		})
 
-		optionMap := mapOptions(i.ApplicationCommandData().Options)
-		_, isGuild := getUserID(i)
-
-		targetGuild := "global"
-		guildName := targetGuild
-
-		if isGuild {
-			targetGuild = i.GuildID
-			guild, err := s.Guild(i.GuildID, RequestOption)
-			if err != nil {
-				cmdError(s, i, err)
-				return
-			}
-			guildName = fmt.Sprintf("%s's", guild.Name)
-		}
-
-		if v, ok := optionMap["global"]; ok && v.BoolValue() {
-			targetGuild = "global"
-			guildName = targetGuild
-		}
-
-		var difficulty int
-		switch optionMap["difficulty"].Value {
-		case "easy":
-			difficulty = minesweeper.Easy
-		case "medium":
-			difficulty = minesweeper.Medium
-		case "hard":
-			difficulty = minesweeper.Hard
-		}
-
-		leaderboard := getLeaderboard(targetGuild, difficulty)
-
-		r := rand.Intn(255)
-		g := rand.Intn(255)
-		b := rand.Intn(255)
-		colorInt := (r << 16) + (g << 8) + b
-
-		embed := discordgo.MessageEmbed{
-			Type:        discordgo.EmbedTypeRich,
-			Title:       fmt.Sprintf("%s Leaderboard", guildName),
-			Description: fmt.Sprintf("Leaderboard for **%s** mode", strings.ToUpper(optionMap["difficulty"].StringValue())),
-			Color:       colorInt,
-		}
-
-		for _, entry := range leaderboard {
-			userString := entry.UserID
-			user, err := s.User(entry.UserID, RequestOption)
-			if err == nil {
-				userString = user.Username
-			}
-
-			duration, err := time.ParseDuration(fmt.Sprintf("%vs", entry.Time))
-			if err != nil {
-				cmdError(s, i, err)
-				return
-			}
-
-			embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
-				Name:   userString,
-				Value:  humanizetime.HumanizeDuration(duration, 3),
-				Inline: false,
+		case "restartticker":
+			close(autoEditChannel)
+			startAutoEdit()
+			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Content: "Restarted ticker.",
+					Flags:   1 << 6,
+				},
 			})
 		}
-
-		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
-			Embeds: &[]*discordgo.MessageEmbed{&embed},
-		}); err != nil {
-			cmdError(s, i, err)
-		}
-
 	},
 }
 
@@ -410,7 +417,7 @@ var ComponentHandlers = map[string]func(s *discordgo.Session, i *discordgo.Inter
 		})
 
 		// Toggle the flag status.
-		game.flagEnabled = !game.flagEnabled
+		game.FlagEnabled = !game.FlagEnabled
 
 		// Create the new flag button.
 		flagRow := discordgo.ActionsRow{}
@@ -429,7 +436,7 @@ var ComponentHandlers = map[string]func(s *discordgo.Session, i *discordgo.Inter
 		}
 
 		// Update the label and style of the flag button based on the flag status.
-		if game.flagEnabled {
+		if game.FlagEnabled {
 			flagButton.Label = "ON"
 			flagButton.Style = discordgo.SuccessButton
 		}
@@ -512,8 +519,8 @@ func HandleBoard(s *discordgo.Session, i *discordgo.InteractionCreate, positionx
 	// Find the spot on the game board based on the provided coordinates
 	spot := game.Game.FindSpot(positionx, positiony)
 
-	// Perform the appropriate action based on the flagEnabled flag
-	switch game.flagEnabled {
+	// Perform the appropriate action based on the FlagEnabled flag
+	switch game.FlagEnabled {
 	case true:
 		game.Game.FlagSpot(spot)
 

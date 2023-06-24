@@ -3,11 +3,18 @@ package main
 import (
 	"context"
 	"fmt"
+	"main/humanizetime"
 	"main/minesweeper"
+	"math/rand"
+	"strings"
+	"time"
 
+	"github.com/bwmarrin/discordgo"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
+
+var autoEditChannel chan struct{}
 
 func orderBySpot(entries []LeaderboardEntry) []LeaderboardEntry {
 	orderedLeaderboard := make([]LeaderboardEntry, len(entries))
@@ -42,9 +49,6 @@ func getLeaderboard(guildID string, difficulty int) []LeaderboardEntry {
 }
 
 func addToLeaderboard(guildID string, difficulty int, newEntry LeaderboardEntry) {
-	// Add to global leaderboard.
-	addToLeaderboard("global", difficulty, newEntry)
-
 	currentLeaderboard := getLeaderboard(guildID, difficulty)
 	// Remove duplicate ID if new is shorter in length.
 	for index, leaderboardEntry := range currentLeaderboard {
@@ -70,7 +74,11 @@ func addToLeaderboard(guildID string, difficulty int, newEntry LeaderboardEntry)
 	}
 
 	currentLeaderboard = append(currentLeaderboard, newEntry)
-	currentLeaderboard = orderBySpot(currentLeaderboard)[:10]
+	currentLeaderboard = orderBySpot(currentLeaderboard)
+
+	if len(currentLeaderboard) > 10 {
+		currentLeaderboard = currentLeaderboard[:10]
+	}
 
 	filter := bson.D{{
 		Key:   "guildID",
@@ -112,4 +120,108 @@ func addToLeaderboard(guildID string, difficulty int, newEntry LeaderboardEntry)
 	if err := request.Decode(&newData); err != nil {
 		fmt.Println(err)
 	}
+}
+
+func generateLeaderboardEmbed(guildID, guildName, difficultyString string) (discordgo.MessageEmbed, error) {
+	var difficulty int
+	switch difficultyString {
+	case "easy":
+		difficulty = minesweeper.Easy
+	case "medium":
+		difficulty = minesweeper.Medium
+	case "hard":
+		difficulty = minesweeper.Hard
+	}
+
+	leaderboard := getLeaderboard(guildID, difficulty)
+
+	r := rand.Intn(255)
+	g := rand.Intn(255)
+	b := rand.Intn(255)
+	colorInt := (r << 16) + (g << 8) + b
+
+	embed := discordgo.MessageEmbed{
+		Type:        discordgo.EmbedTypeRich,
+		Title:       fmt.Sprintf("%s Leaderboard", guildName),
+		Description: fmt.Sprintf("Leaderboard for **%s** mode", strings.ToUpper(difficultyString)),
+		Color:       colorInt,
+	}
+
+	for _, entry := range leaderboard {
+		userString := entry.UserID
+		user, err := s.User(entry.UserID, RequestOption)
+		if err == nil {
+			userString = user.Username
+		}
+
+		duration, err := time.ParseDuration(fmt.Sprintf("%vs", entry.Time))
+		if err != nil {
+			fmt.Println(err)
+			return discordgo.MessageEmbed{}, err
+		}
+
+		embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
+			Name:   userString,
+			Value:  humanizetime.HumanizeDuration(duration, 3),
+			Inline: false,
+		})
+	}
+
+	return embed, nil
+}
+
+func editConfiguredMessages() {
+	messages := getLeaderboardMessages()
+
+	for _, message := range messages {
+		guild, err := s.Guild(message.GuildID)
+		if err != nil {
+			removeLeaderboardMessage(message.MessageID)
+			fmt.Println(err)
+			continue
+		}
+
+		var difficultyString string
+		switch message.Difficulty {
+		case minesweeper.Easy:
+			difficultyString = "easy"
+		case minesweeper.Medium:
+			difficultyString = "medium"
+		case minesweeper.Hard:
+			difficultyString = "hard"
+		}
+
+		embed, err := generateLeaderboardEmbed(guild.ID, guild.Name, difficultyString)
+		if err != nil {
+			removeLeaderboardMessage(message.MessageID)
+			fmt.Println(err)
+			continue
+		}
+
+		if _, err := s.ChannelMessageEditComplex(&discordgo.MessageEdit{
+			ID:      message.MessageID,
+			Channel: message.ChannelID,
+			Embeds:  []*discordgo.MessageEmbed{&embed},
+		}); err != nil {
+			removeLeaderboardMessage(message.MessageID)
+			fmt.Println(err)
+			continue
+		}
+	}
+}
+
+func startAutoEdit() {
+	ticker := time.NewTicker(5 * time.Minute)
+	autoEditChannel = make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				editConfiguredMessages()
+			case <-autoEditChannel:
+				ticker.Stop()
+				return
+			}
+		}
+	}()
 }

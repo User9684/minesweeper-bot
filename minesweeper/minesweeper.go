@@ -1,9 +1,8 @@
 package minesweeper
 
 import (
-	"crypto/rand"
 	"fmt"
-	"math/big"
+	"math/rand"
 )
 
 // Spot types.
@@ -147,44 +146,44 @@ func generateSpots(diff int) (map[string]*Spot, int) {
 	Spots := make(map[string]*Spot)
 
 	// Generate random start position.
-	sx, _ := rand.Int(rand.Reader, big.NewInt(4))
-	sy, _ := rand.Int(rand.Reader, big.NewInt(4))
-	startPositionKey := getKey(int(sx.Int64()), int(sy.Int64()))
+	sx := rand.Intn(5)
+	sy := rand.Intn(5)
+	startPositionKey := getKey(sx, sy)
 
 	ignoredPositions := map[string]bool{}
+	bsx := sx - 1
+	bsy := sy - 1
 	for y := 0; y <= 2; y++ {
 		for x := 0; x <= 2; x++ {
-			newx := int(sx.Int64()) + x
-			newy := int(sy.Int64()) + y
+			newx := bsx + x
+			newy := bsy + y
 			if newx >= 5 || newx < 0 {
 				continue
 			}
 			if newy >= 5 || newy < 0 {
 				continue
 			}
-			ignoredPositions[getKey(newx, newy)] = true
+			newIgnoredKey := getKey(newx, newy)
+			ignoredPositions[newIgnoredKey] = true
 		}
 	}
+
+	ignoredPositions[startPositionKey] = true
 
 	// Generate bomb positions.
 	bombPositions := make(map[string]bool)
 	for i := 0; i <= 4+(diff*2); i++ {
 		// Generate position.
-		x, _ := rand.Int(rand.Reader, big.NewInt(4))
-		y, _ := rand.Int(rand.Reader, big.NewInt(4))
-		key := getKey(int(x.Int64()), int(y.Int64()))
+		key := getKey(rand.Intn(5), rand.Intn(5))
 
 		// Repeat until position is valid, or has tried 5 times.
-		tries := 0
-		for (bombPositions[key] || ignoredPositions[key]) && tries <= 4 {
-			// If this appears in console, don't worry. You only need to worry if it somehow is over 5.
-			fmt.Printf("Invalid bomb position, retrying... (Retry attempt #%d)\n", tries)
-			tries++
-			x, _ = rand.Int(rand.Reader, big.NewInt(4))
-			y, _ = rand.Int(rand.Reader, big.NewInt(4))
-			key = getKey(int(x.Int64()), int(y.Int64()))
+		for tries := 0; (bombPositions[key] || ignoredPositions[key]) && tries <= 9; tries++ {
+			key = getKey(rand.Intn(5), rand.Intn(5))
 		}
 
+		if bombPositions[key] || ignoredPositions[key] {
+			continue
+		}
 		bombPositions[key] = true
 	}
 

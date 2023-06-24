@@ -23,7 +23,8 @@ type MinesweeperGame struct {
 	FlagID      string
 	UserID      string
 	Difficulty  string
-	flagEnabled bool
+	FlagEnabled bool
+	Won         bool
 	StartTime   time.Time
 	Game        *minesweeper.Game
 }
@@ -33,6 +34,7 @@ var c *mongo.Client
 var d *mongo.Database
 var Games = make(map[string]*MinesweeperGame)
 var BoardPositionRegex = regexp.MustCompile(`boardx(\d+)y(\d+)`)
+var MessageLinkRegex = regexp.MustCompile(`(?:http(?:s)?://)(?:(?:canary|ptb).)?discord.com/channels/(\d+|@me)/(\d+)/(\d+)`)
 var Admins = make(map[string]bool)
 var EndAfter int64
 
@@ -89,6 +91,9 @@ func main() {
 	}
 
 	RegisterCommands(s)
+
+	fmt.Println("Starting leaderboard edit ticker...")
+	startAutoEdit()
 
 	// Waits for SIGTERM.
 	sigChan := make(chan os.Signal, 1)

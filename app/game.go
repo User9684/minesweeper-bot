@@ -33,6 +33,8 @@ func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int, addTo
 	case minesweeper.Lost:
 		content += getRandomMessage(SarcasticLostMessages)
 	case minesweeper.Won:
+		game.Won = true
+
 		messages := getMessages(int64(gameDuration.Seconds()))
 		if gameDuration.Seconds() <= 0.5 {
 			messages = SarcasticOneClickMessages
@@ -41,11 +43,13 @@ func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int, addTo
 
 		content += getRandomMessage(messages)
 		if addToBoard {
-			addToLeaderboard(game.GuildID, game.Game.Difficulty, LeaderboardEntry{
+			entry := LeaderboardEntry{
 				Time:   gameDuration.Seconds(),
 				UserID: game.UserID,
 				Spot:   11,
-			})
+			}
+			addToLeaderboard(game.GuildID, game.Game.Difficulty, entry)
+			addToLeaderboard("global", game.Game.Difficulty, entry)
 		}
 	}
 
@@ -100,6 +104,10 @@ func GenerateBoard(game *MinesweeperGame, firstGen, useSpotTypes bool) []discord
 				typeToUse = spot.Type
 			}
 
+			if game.Won && spot.Type == minesweeper.Bomb {
+				typeToUse = minesweeper.Flag
+			}
+
 			// Set the properties of the button based on the spot type.
 			switch typeToUse {
 			case minesweeper.Hidden:
@@ -107,6 +115,10 @@ func GenerateBoard(game *MinesweeperGame, firstGen, useSpotTypes bool) []discord
 					Name: "invie",
 					ID:   "1112567785076305971",
 				}
+
+			case minesweeper.Normal:
+				button.Style = discordgo.SecondaryButton
+				button.Label = strconv.Itoa(spot.NearbyBombs)
 
 			case minesweeper.Bomb:
 				button.Emoji = discordgo.ComponentEmoji{
@@ -119,10 +131,6 @@ func GenerateBoard(game *MinesweeperGame, firstGen, useSpotTypes bool) []discord
 					Name: "🚩",
 				}
 				button.Style = discordgo.SuccessButton
-
-			case minesweeper.Normal:
-				button.Style = discordgo.SecondaryButton
-				button.Label = strconv.Itoa(spot.NearbyBombs)
 
 			case minesweeper.StartHere:
 				button.Emoji = discordgo.ComponentEmoji{

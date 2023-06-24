@@ -6,7 +6,6 @@ import (
 	"os"
 
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -24,20 +23,18 @@ type Leaderboards struct {
 }
 
 type GuildData struct {
-	ID          primitive.ObjectID `bson:"_id"`
-	GuildID     string             `bson:"guildID"`
-	Leaderboard Leaderboards       `bson:"timeLeaderboard"`
+	GuildID     string       `bson:"guildID"`
+	Leaderboard Leaderboards `bson:"timeLeaderboard"`
 }
 type Blacklist struct {
-	ID      primitive.ObjectID `bson:"_id"`
-	UserID  string             `bson:"userID"`
-	Message string             `bson:"blacklistMessage"`
+	UserID  string `bson:"userID"`
+	Message string `bson:"blacklistMessage"`
 }
 type LeaderboardMessage struct {
-	ID        primitive.ObjectID `bson:"_id"`
-	GuildID   string             `bson:"guildID"`
-	ChannelID string             `bson:"channelID"`
-	MessageID string             `bson:"messageID"`
+	GuildID    string `bson:"guildID"`
+	ChannelID  string `bson:"channelID"`
+	MessageID  string `bson:"messageID"`
+	Difficulty int    `bson:"difficulty"`
 }
 
 var Collections = []string{
@@ -154,16 +151,75 @@ func getBlacklist(userID string) Blacklist {
 
 func getLeaderboardMessages() []LeaderboardMessage {
 	var results []LeaderboardMessage
-	cursor, err := d.Collection("leaderboardmessages").Find(context.TODO(), nil)
+	cursor, err := d.Collection("leaderboardmessages").Find(context.TODO(), bson.D{})
 	if err != nil {
 		fmt.Println(err)
 		return results
 	}
-	err = cursor.All(context.TODO(), results)
+	err = cursor.All(context.TODO(), &results)
 	if err != nil {
 		fmt.Println(err)
 		return results
 	}
 
 	return results
+}
+
+func addLeaderboardMessage(guildID, channelID, messageID string, difficulty int) {
+	filter := bson.D{{
+		Key:   "guildID",
+		Value: guildID,
+	}, {
+		Key:   "channelID",
+		Value: channelID,
+	}, {
+		Key:   "messageID",
+		Value: messageID,
+	}}
+
+	newData := LeaderboardMessage{
+		GuildID:    guildID,
+		ChannelID:  channelID,
+		MessageID:  messageID,
+		Difficulty: difficulty,
+	}
+
+	data, err := bson.Marshal(newData)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	var update bson.M
+	if err := bson.Unmarshal(data, &update); err != nil {
+		return
+	}
+
+	request := d.Collection("leaderboardmessages").FindOneAndReplace(
+		context.TODO(),
+		filter,
+		update,
+		options.FindOneAndReplace().SetUpsert(true),
+	)
+
+	if err := request.Decode(&update); err != nil {
+		fmt.Println(err)
+	}
+}
+
+func removeLeaderboardMessage(messageID string) {
+	filter := bson.D{{
+		Key:   "messageID",
+		Value: messageID,
+	}}
+
+	request := d.Collection("leaderboardmessages").FindOneAndDelete(
+		context.TODO(),
+		filter,
+		options.FindOneAndDelete(),
+	)
+
+	if err := request.Decode(&filter); err != nil {
+		fmt.Println(err)
+	}
 }
