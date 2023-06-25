@@ -159,6 +159,27 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 		newGame.BoardID = msg.ID
 		newGame.FlagID = flagMsg.ID
 
+		// Configure automatic end game timer.
+		timer := time.NewTimer(time.Duration(EndAfter) * time.Second)
+		channel := make(chan struct{})
+		newGame.EndGameChan = &channel
+
+		// Start automatic end game timer.
+		if EndAfter != 0 {
+			go func() {
+				for {
+					select {
+					case <-timer.C:
+						HandleGameEnd(s, &newGame, minesweeper.TimedEnd, false)
+						return
+					case <-channel:
+						timer.Stop()
+						return
+					}
+				}
+			}()
+		}
+
 		// Store the new game object in the Games map.
 		Games[userID] = &newGame
 	},
@@ -364,6 +385,7 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 
 		case "restartticker":
 			close(autoEditChannel)
+			editConfiguredMessages()
 			startAutoEdit()
 			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,

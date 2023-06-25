@@ -87,7 +87,7 @@ func blacklistUser(userID, message string) {
 		return
 	}
 
-	var update bson.M
+	var update bson.D
 	if err := bson.Unmarshal(data, &update); err != nil {
 		return
 	}
@@ -190,7 +190,7 @@ func addLeaderboardMessage(guildID, channelID, messageID string, difficulty int)
 		return
 	}
 
-	var update bson.M
+	var update bson.D
 	if err := bson.Unmarshal(data, &update); err != nil {
 		return
 	}

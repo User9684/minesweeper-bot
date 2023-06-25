@@ -171,6 +171,7 @@ func generateLeaderboardEmbed(guildID, guildName, difficultyString string) (disc
 }
 
 func editConfiguredMessages() {
+	fmt.Println("Editing leaderboard messages...")
 	messages := getLeaderboardMessages()
 
 	for _, message := range messages {

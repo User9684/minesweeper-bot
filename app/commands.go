@@ -164,6 +164,11 @@ var Commands = []*discordgo.ApplicationCommand{
 					},
 				},
 			},
+			{
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
+				Name:        "restartticker",
+				Description: "Restart the leaderboard editing ticker",
+			},
 		},
 	},
 }

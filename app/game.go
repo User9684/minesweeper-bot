@@ -12,6 +12,7 @@ import (
 
 // Handles the end of the game and sends the appropriate message.
 func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int, addToBoard bool) {
+	close(*game.EndGameChan)
 	// Calculate the time taken in the game and format it as a human-readable string.
 	gameDuration := time.Now().Sub(game.StartTime)
 	timeString := fmt.Sprintf(

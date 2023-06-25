@@ -13,6 +13,7 @@ import (
 	"main/minesweeper"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -27,6 +28,7 @@ type MinesweeperGame struct {
 	Won         bool
 	StartTime   time.Time
 	Game        *minesweeper.Game
+	EndGameChan *chan struct{}
 }
 
 var s *discordgo.Session
@@ -60,6 +62,8 @@ func BotInit() {
 }
 
 func main() {
+	// Load variables from .env if it exists.
+	godotenv.Load()
 	// Mongo setup.
 	fmt.Println("Connecting to mongo...")
 	c = DbInit()
