@@ -10,7 +10,7 @@
 # Selfhosting Instructions (docker)
 - Clone `app.example.env` and `db.example.env` and rename them to `app.env` and `db.env`
 - Populate `app.env` and `db.env` accordingly 
-- Run the command `docker-compose -f docker-compose.yml`
+- Run the command `docker-compose up -f docker-compose.yml`
 - Voilà!
 
 # Selfhosting Instructions (standalone)
