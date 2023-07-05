@@ -14,6 +14,12 @@ func RegisterEvents() {
 		intents := s.Identify.Intents
 
 		fmt.Printf("Logged in as: %v#%v\nIntents: %v\n", s.State.User.Username, s.State.User.Discriminator, intents)
+
+		// Set bot status accordingly to bot config.
+		config := getBotConfig()
+		if config.Presence.Status != "" {
+			setBotPresence(config.Presence)
+		}
 	})
 
 	// Interaction handler.
@@ -104,4 +110,38 @@ func HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 
 	fmt.Printf("Invalid component interaction detected.\nCustom ID: %s\nCommand used by: %s\n", customID, i.Interaction.Member.User.ID)
+}
+
+func setBotPresence(config PresenceData) {
+	activity := &discordgo.Activity{
+		Name: config.Status,
+	}
+
+	switch config.Presence {
+	case "WATCHING":
+		activity.Type = discordgo.ActivityTypeWatching
+	case "PLAYING":
+		activity.Type = discordgo.ActivityTypeGame
+	case "LISTENING":
+		activity.Type = discordgo.ActivityTypeListening
+	case "COMPETING":
+		activity.Type = discordgo.ActivityTypeCompeting
+	case "STREAMING":
+		activity.Type = discordgo.ActivityTypeStreaming
+
+		streamURL := config.URL
+		if streamURL == "" {
+			streamURL = "https://www.youtube.com/watch?v=Pr2ONUSGMgQ"
+		}
+
+		activity.URL = streamURL
+	case "CUSTOM":
+		activity.Type = discordgo.ActivityTypeCustom
+	}
+
+	if err := s.UpdateStatusComplex(discordgo.UpdateStatusData{
+		Activities: []*discordgo.Activity{activity},
+	}); err != nil {
+		fmt.Printf("Failed to set bot presence!\n%v\n", err)
+	}
 }

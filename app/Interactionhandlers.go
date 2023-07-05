@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"main/minesweeper"
 	"strconv"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 var RequestOption = func(cfg *discordgo.RequestConfig) {}
@@ -394,6 +397,113 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 					Flags:   1 << 6,
 				},
 			})
+
+		case "presence":
+			str := optionMap["status"].StringValue()
+			pre := optionMap["presence"].StringValue()
+
+			// Update saved status.
+			filter := bson.D{{
+				Key:   "botID",
+				Value: s.State.User.ID,
+			}}
+
+			newData := getBotConfig()
+			newData.BotID = s.State.User.ID
+			newData.Presence = PresenceData{
+				Presence: pre,
+				Status:   str,
+			}
+
+			if pre == "CLEAR" {
+				newData.Presence = PresenceData{}
+			}
+
+			data, err := bson.Marshal(newData)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+
+			var update bson.M
+			if err := bson.Unmarshal(data, &update); err != nil {
+				return
+			}
+
+			request := d.Collection("botconfig").FindOneAndUpdate(
+				context.TODO(),
+				filter,
+				bson.D{{
+					Key:   "$set",
+					Value: update,
+				}},
+				options.FindOneAndUpdate().SetUpsert(true),
+			)
+
+			if err := request.Decode(&newData); err != nil {
+				fmt.Println(err)
+			}
+
+			// Update the actual bot status
+			activity := &discordgo.Activity{
+				Name: str,
+			}
+
+			switch pre {
+			case "WATCHING":
+				activity.Type = discordgo.ActivityTypeWatching
+			case "PLAYING":
+				activity.Type = discordgo.ActivityTypeGame
+			case "LISTENING":
+				activity.Type = discordgo.ActivityTypeListening
+			case "COMPETING":
+				activity.Type = discordgo.ActivityTypeCompeting
+			case "STREAMING":
+				activity.Type = discordgo.ActivityTypeStreaming
+
+				var streamURL string
+				stval, ok := optionMap["streaming"]
+				if ok {
+					streamURL = stval.StringValue()
+				}
+				if !ok {
+					streamURL = "https://www.youtube.com/watch?v=Pr2ONUSGMgQ"
+				}
+
+				activity.URL = streamURL
+			case "CLEAR":
+				if err := s.UpdateStatusComplex(discordgo.UpdateStatusData{
+					Activities: []*discordgo.Activity{},
+				}); err != nil {
+					cmdError(s, i, err)
+				}
+				if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Flags:   1 << 6,
+						Content: "Cleared bot presence!",
+					},
+				}); err != nil {
+					cmdError(s, i, err)
+				}
+				return
+			}
+
+			if err := s.UpdateStatusComplex(discordgo.UpdateStatusData{
+				Activities: []*discordgo.Activity{activity},
+			}); err != nil {
+				cmdError(s, i, err)
+			}
+
+			if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Flags:   1 << 6,
+					Content: fmt.Sprintf("Set the bot's %s presence to %s", pre, str),
+				},
+			}); err != nil {
+				cmdError(s, i, err)
+			}
 		}
 	},
 }

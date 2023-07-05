@@ -22,6 +22,12 @@ type Leaderboards struct {
 	Hard   []LeaderboardEntry `bson:"hard"`
 }
 
+type PresenceData struct {
+	Status   string `bson:"status"`
+	Presence string `bson:"presence"`
+	URL      string `bson:"url"`
+}
+
 type GuildData struct {
 	GuildID     string       `bson:"guildID"`
 	Leaderboard Leaderboards `bson:"timeLeaderboard"`
@@ -36,11 +42,16 @@ type LeaderboardMessage struct {
 	MessageID  string `bson:"messageID"`
 	Difficulty int    `bson:"difficulty"`
 }
+type BotConfig struct {
+	BotID    string       `bson:"botID"`
+	Presence PresenceData `bson:"presenceData"`
+}
 
 var Collections = []string{
 	"guilddata",
 	"blacklists",
 	"leaderboardmessages",
+	"botconfig",
 }
 
 func DbInit() *mongo.Client {
@@ -65,10 +76,11 @@ func CollectionCheck(d *mongo.Database) {
 	}
 
 	for _, collectionName := range Collections {
-		if !isInArray(collectionName, collectionNames) {
-			fmt.Printf("Created collection %s\n", collectionName)
-			d.CreateCollection(context.TODO(), collectionName)
+		if isInArray(collectionName, collectionNames) {
+			continue
 		}
+		d.CreateCollection(context.TODO(), collectionName)
+		fmt.Printf("Created collection %s\n", collectionName)
 	}
 }
 
@@ -105,8 +117,6 @@ func blacklistUser(userID, message string) {
 	if err := request.Decode(&newBlacklist); err != nil {
 		fmt.Println(err)
 	}
-
-	return
 }
 
 func unblacklistUser(userID string) {
@@ -222,4 +232,15 @@ func removeLeaderboardMessage(messageID string) {
 	if err := request.Decode(&filter); err != nil {
 		fmt.Println(err)
 	}
+}
+
+func getBotConfig() BotConfig {
+	var botconfig BotConfig
+	filter := bson.D{{
+		Key:   "botID",
+		Value: s.State.User.ID,
+	}}
+	d.Collection("botconfig").FindOne(context.TODO(), filter).Decode(&botconfig)
+
+	return botconfig
 }

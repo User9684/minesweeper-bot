@@ -169,6 +169,57 @@ var Commands = []*discordgo.ApplicationCommand{
 				Name:        "restartticker",
 				Description: "Restart the leaderboard editing ticker",
 			},
+			{
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
+				Name:        "presence",
+				Description: "Set the presence of the bot",
+				Options: []*discordgo.ApplicationCommandOption{
+					{
+						Name:        "status",
+						Description: "Presence string",
+						Type:        discordgo.ApplicationCommandOptionString,
+						Required:    true,
+					},
+					{
+						Name:        "presence",
+						Description: "Type of status",
+						Type:        discordgo.ApplicationCommandOptionString,
+						Required:    true,
+						Choices: []*discordgo.ApplicationCommandOptionChoice{
+							{
+								Name:  "WATCHING",
+								Value: "WATCHING",
+							},
+							{
+								Name:  "PLAYING",
+								Value: "PLAYING",
+							},
+							{
+								Name:  "LISTENING",
+								Value: "LISTENING",
+							},
+							{
+								Name:  "COMPETING",
+								Value: "COMPETING",
+							},
+							{
+								Name:  "STREAMING",
+								Value: "STREAMING",
+							},
+							{
+								Name:  "CLEAR",
+								Value: "CLEAR",
+							},
+						},
+					},
+					{
+						Name:        "streaming",
+						Description: "Link to use for streaming presence",
+						Type:        discordgo.ApplicationCommandOptionString,
+						Required:    false,
+					},
+				},
+			},
 		},
 	},
 }

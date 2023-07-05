@@ -14,7 +14,7 @@ import (
 func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int, addToBoard bool) {
 	close(*game.EndGameChan)
 	// Calculate the time taken in the game and format it as a human-readable string.
-	gameDuration := time.Now().Sub(game.StartTime)
+	gameDuration := time.Since(game.StartTime)
 	timeString := fmt.Sprintf(
 		"\nYour time was %s",
 		humanizetime.HumanizeDuration(gameDuration, 3),
