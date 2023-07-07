@@ -10,8 +10,14 @@
 # Selfhosting Instructions (docker)
 - Clone `app.example.env` and `db.example.env` and rename them to `app.env` and `db.env`
 - Populate `app.env` and `db.env` accordingly 
-- Run the command `docker-compose -f docker-compose.yml up`
+- Run the start command
 - Voilà!
+
+# Start Command
+If you do not already have a mongoDB host, run the command below
+- `docker-compose -f docker-compose.yml up`
+If you already have a mongoDB host, run the command below
+- `docker-compose -f docker-compose.bot.yml up`
 
 # Selfhosting Instructions (standalone)
 - Create a MongoDB host, instructions can be found on the MongoDB website.

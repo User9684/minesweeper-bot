@@ -50,6 +50,7 @@ func getLeaderboard(guildID string, difficulty int) []LeaderboardEntry {
 
 func addToLeaderboard(guildID string, difficulty int, newEntry LeaderboardEntry) {
 	currentLeaderboard := getLeaderboard(guildID, difficulty)
+	var dontReorder bool
 	// Remove duplicate ID if new is shorter in length.
 	for index, leaderboardEntry := range currentLeaderboard {
 		if leaderboardEntry.UserID != newEntry.UserID {
@@ -59,21 +60,35 @@ func addToLeaderboard(guildID string, difficulty int, newEntry LeaderboardEntry)
 			// Return because the new entry is longer than the past one.
 			return
 		}
+		if leaderboardEntry.Spot == 0 {
+			newEntry.Spot = 0
+			currentLeaderboard[index] = newEntry
+			dontReorder = true
+			break
+		}
 		currentLeaderboard = append(currentLeaderboard[:index], currentLeaderboard[index+1:]...)
 	}
 
-	newEntry.Spot = len(currentLeaderboard)
+	if !dontReorder {
+		newEntry.Spot = len(currentLeaderboard)
+		fmt.Println(newEntry.Spot)
 
-	for i, leaderboardEntry := range currentLeaderboard {
-		if leaderboardEntry.Time > newEntry.Time {
-			newEntry.Spot--
-			currentLeaderboard[i].Spot++
-			continue
+		for i, leaderboardEntry := range currentLeaderboard {
+			if leaderboardEntry.Time > newEntry.Time {
+				newEntry.Spot--
+				currentLeaderboard[i].Spot++
+				continue
+			}
+			break
 		}
-		break
+
+		currentLeaderboard = append(currentLeaderboard, newEntry)
 	}
 
-	currentLeaderboard = append(currentLeaderboard, newEntry)
+	for _, leaderboardEntry := range currentLeaderboard {
+		fmt.Printf("%s %d\n", leaderboardEntry.UserID, leaderboardEntry.Spot)
+	}
+
 	currentLeaderboard = orderBySpot(currentLeaderboard)
 
 	if len(currentLeaderboard) > 10 {
