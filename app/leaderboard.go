@@ -81,7 +81,6 @@ func addToLeaderboard(guildID string, difficulty int, newEntry LeaderboardEntry)
 
 	if !dontReorder {
 		newEntry.Spot = len(currentLeaderboard)
-		fmt.Println(newEntry.Spot)
 
 		for i, leaderboardEntry := range currentLeaderboard {
 			if leaderboardEntry.Time > newEntry.Time {
@@ -93,10 +92,6 @@ func addToLeaderboard(guildID string, difficulty int, newEntry LeaderboardEntry)
 		}
 
 		currentLeaderboard = append(currentLeaderboard, newEntry)
-	}
-
-	for _, leaderboardEntry := range currentLeaderboard {
-		fmt.Printf("%s %d\n", leaderboardEntry.UserID, leaderboardEntry.Spot)
 	}
 
 	currentLeaderboard = orderBySpot(currentLeaderboard)
