@@ -708,8 +708,23 @@ func HandleBoard(s *discordgo.Session, i *discordgo.InteractionCreate, positionx
 		game.Game.FlagSpot(spot)
 
 	case false:
+		var (
+			gameEnd bool
+			event   int
+		)
+		if spot.DisplayedType == minesweeper.Normal {
+			event = game.Game.ChordSpot(spot)
+		}
+		if event != minesweeper.Nothing {
+			// Handle the game end and respond with a deferred message update
+			HandleGameEnd(s, game, event, true)
+			go s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseDeferredMessageUpdate,
+			})
+			return
+		}
 		// Visit the spot and check if the game ends
-		gameEnd, event := game.Game.VisitSpot(spot)
+		gameEnd, event = game.Game.VisitSpot(spot)
 		if gameEnd {
 			// Handle the game end and respond with a deferred message update
 			HandleGameEnd(s, game, event, true)

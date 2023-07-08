@@ -130,10 +130,31 @@ func (g *Game) VisitNearbyZeros(s *Spot) bool {
 }
 
 func (g *Game) HasVisitedZero(s *Spot) bool {
-	if g.VisitedZeros[getKey(s.X, s.Y)] {
-		return true
+	return g.VisitedZeros[getKey(s.X, s.Y)]
+}
+
+// Visits the surrounding 8 spots if the surrounding flag count is equal to the number of surrounding bombs.
+func (g *Game) ChordSpot(s *Spot) int {
+	var spotsToVisit []*Spot
+	flaggedCells := 0
+	for _, spot := range s.SurroundingSpots {
+		if spot.DisplayedType == Flag {
+			flaggedCells++
+			continue
+		}
+		spotsToVisit = append(spotsToVisit, spot)
 	}
-	return false
+	if flaggedCells != s.NearbyBombs {
+		return Nothing
+	}
+	for _, spot := range spotsToVisit {
+		gameEnd, result := g.VisitSpot(spot)
+		if gameEnd {
+			return result
+		}
+	}
+
+	return Nothing
 }
 
 func (g *Game) FindSpot(X, Y int) *Spot {
