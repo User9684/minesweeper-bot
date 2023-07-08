@@ -38,6 +38,7 @@ var d *mongo.Database
 var Games = make(map[string]*MinesweeperGame)
 var BoardPositionRegex = regexp.MustCompile(`boardx(\d+)y(\d+)`)
 var MessageLinkRegex = regexp.MustCompile(`(?:http(?:s)?://)(?:(?:canary|ptb).)?discord.com/channels/(\d+|@me)/(\d+)/(\d+)`)
+var UserStatsFormatString = "**Wins:** %d\n**Losses:** %d\n**Personal Best:** %s\n**Personal Worst:** %s"
 var Admins = make(map[string]bool)
 var EndAfter int64
 
@@ -118,7 +119,7 @@ func isInArray(value string, array []string) bool {
 
 func handlePanic(err interface{}) {
 	stackSplit := strings.Split(string(debug.Stack()), "\n")
-	stackTrace := strings.Join(append(stackSplit[:1], stackSplit[5:]...), "\n")
+	stackTrace := strings.Join(append(stackSplit[:1], stackSplit[7:]...), "\n")
 	log := fmt.Sprintf("Recovered from panic\n%v\n%s", err, stackTrace)
 
 	fmt.Println(log)

@@ -100,11 +100,6 @@ func addToLeaderboard(guildID string, difficulty int, newEntry LeaderboardEntry)
 		currentLeaderboard = currentLeaderboard[:10]
 	}
 
-	filter := bson.D{{
-		Key:   "guildID",
-		Value: guildID,
-	}}
-
 	newData := getGuildData(guildID)
 
 	switch difficulty {
@@ -115,6 +110,11 @@ func addToLeaderboard(guildID string, difficulty int, newEntry LeaderboardEntry)
 	case minesweeper.Hard:
 		newData.Leaderboard.Hard = currentLeaderboard
 	}
+
+	filter := bson.D{{
+		Key:   "guildID",
+		Value: guildID,
+	}}
 
 	data, err := bson.Marshal(newData)
 	if err != nil {

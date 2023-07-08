@@ -3,8 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"main/humanizetime"
 	"main/minesweeper"
+	"math/rand"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -12,7 +15,13 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+type DifficultyLevel struct {
+	PB string
+	PW string
+}
+
 var RequestOption = func(cfg *discordgo.RequestConfig) {}
+var difficultyOrder = []string{"easy", "medium", "hard"}
 
 // Map command names to their respected handler.
 var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
@@ -240,8 +249,106 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 			cmdError(s, i, err)
 		}
 	},
-	"admin": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	"profile": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		defer func() {
+			if err := recover(); err != nil {
+				handlePanic(err)
+			}
+		}()
+		// Convert options to map.
+		optionMap := mapOptions(i.ApplicationCommandData().Options)
+		userID, _ := getUserID(i)
+
+		var targetID string
+		target, ok := optionMap["target"]
+		if !ok {
+			targetID = userID
+		}
+		if ok {
+			targetID = target.UserValue(s).ID
+		}
+
+		userData := getUserData(targetID)
+
+		r := rand.Intn(255)
+		g := rand.Intn(255)
+		b := rand.Intn(255)
+		colorInt := (r << 16) + (g << 8) + b
+
+		var userString string
+		var userImage string
+		user, err := s.User(targetID, RequestOption)
+		if err != nil {
+			fmt.Println(err)
+			userString = targetID
+			userImage = "https://cdn.discordapp.com/embed/avatars/0.png"
+		}
+		if err == nil {
+			userString = user.Username
+			userImage = user.AvatarURL("")
+		}
+
+		var fields []*discordgo.MessageEmbedField
+
+		difficulties := map[string]*DifficultyLevel{
+			"easy":   {PB: "Never played", PW: "Never played"},
+			"medium": {PB: "Never played", PW: "Never played"},
+			"hard":   {PB: "Never played", PW: "Never played"},
+		}
+
+		for level, data := range userData.Difficulties {
+			pbd, err := time.ParseDuration(fmt.Sprintf("%fs", data.PB))
+			if err == nil && pbd.Seconds() != 0 {
+				difficulties[level].PB = humanizetime.HumanizeDuration(pbd, 3)
+			}
+
+			pwd, err := time.ParseDuration(fmt.Sprintf("%fs", data.PW))
+			if err == nil && pwd.Seconds() != 0 {
+				difficulties[level].PW = humanizetime.HumanizeDuration(pwd, 3)
+			}
+		}
+
+		for _, difficulty := range difficultyOrder {
+			difficultyData := difficulties[difficulty]
+			fieldValue := fmt.Sprintf(UserStatsFormatString,
+				userData.Difficulties[difficulty].Wins,
+				userData.Difficulties[difficulty].Losses,
+				difficultyData.PB,
+				difficultyData.PW)
+
+			fields = append(fields, &discordgo.MessageEmbedField{
+				Name:   fmt.Sprintf("Stats for **%s** mode", strings.ToUpper(difficulty)),
+				Value:  fieldValue,
+				Inline: true,
+			})
+		}
+
+		embed := discordgo.MessageEmbed{
+			Type:   discordgo.EmbedTypeRich,
+			Title:  fmt.Sprintf("%s's Stats", userString),
+			Color:  colorInt,
+			Fields: fields,
+			Thumbnail: &discordgo.MessageEmbedThumbnail{
+				URL: userImage,
+			},
+		}
+
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Embeds: []*discordgo.MessageEmbed{
+					&embed,
+				},
+			},
+		})
+
+	},
+	"admin": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		var ignoreRecover bool
+		defer func() {
+			if ignoreRecover {
+				return
+			}
 			if err := recover(); err != nil {
 				handlePanic(err)
 			}
@@ -536,6 +643,10 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 			}); err != nil {
 				cmdError(s, i, err)
 				return
+			}
+
+			if !optionMap["recover"].BoolValue() {
+				ignoreRecover = true
 			}
 
 			smallSlice := make([]int, 2)

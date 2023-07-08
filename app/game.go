@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"main/humanizetime"
 	"main/minesweeper"
@@ -8,6 +9,8 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // Handles the end of the game and sends the appropriate message.
@@ -38,24 +41,110 @@ func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int, addTo
 		content += getRandomMessage(SarcasticTimeOverMessages)
 	case minesweeper.Lost:
 		content += getRandomMessage(SarcasticLostMessages)
+
+		userData := getUserData(game.UserID)
+
+		dd := userData.Difficulties[game.Difficulty]
+
+		dd.Losses++
+
+		filter := bson.D{{
+			Key:   "userID",
+			Value: game.UserID,
+		}}
+
+		data, err := bson.Marshal(userData)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		var update bson.M
+		if err := bson.Unmarshal(data, &update); err != nil {
+			return
+		}
+
+		request := d.Collection("userdata").FindOneAndUpdate(
+			context.TODO(),
+			filter,
+			bson.D{{
+				Key:   "$set",
+				Value: update,
+			}},
+			options.FindOneAndUpdate().SetUpsert(true),
+		)
+
+		if err := request.Decode(&userData); err != nil {
+			fmt.Println(err)
+		}
 	case minesweeper.Won:
 		game.Won = true
 
 		messages := getMessages(int64(gameDuration.Seconds()))
-		if gameDuration.Seconds() <= 0.5 {
+		if gameDuration.Seconds() <= 0.2 {
 			messages = SarcasticOneClickMessages
 			addToBoard = false
 		}
 
 		content += getRandomMessage(messages)
-		if addToBoard {
-			entry := LeaderboardEntry{
-				Time:   gameDuration.Seconds(),
-				UserID: game.UserID,
-				Spot:   11,
-			}
+		if !addToBoard {
+			break
+		}
+		entry := LeaderboardEntry{
+			Time:   gameDuration.Seconds(),
+			UserID: game.UserID,
+			Spot:   11,
+		}
+		if game.GuildID != "" {
 			addToLeaderboard(game.GuildID, game.Game.Difficulty, entry)
-			addToLeaderboard("global", game.Game.Difficulty, entry)
+		}
+		addToLeaderboard("global", game.Game.Difficulty, entry)
+
+		userData := getUserData(game.UserID)
+
+		dd := userData.Difficulties[game.Difficulty]
+
+		dd.Wins++
+		if dd.PB > gameDuration.Seconds() || dd.PB == 0 {
+			dd.PB = gameDuration.Seconds()
+		}
+		if dd.PW < gameDuration.Seconds() {
+			dd.PW = gameDuration.Seconds()
+		}
+
+		if userData.Difficulties == nil {
+			userData.Difficulties = map[string]DifficultyData{}
+		}
+		userData.Difficulties[game.Difficulty] = dd
+
+		filter := bson.D{{
+			Key:   "userID",
+			Value: game.UserID,
+		}}
+
+		data, err := bson.Marshal(userData)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		var update bson.M
+		if err := bson.Unmarshal(data, &update); err != nil {
+			return
+		}
+
+		request := d.Collection("userdata").FindOneAndUpdate(
+			context.TODO(),
+			filter,
+			bson.D{{
+				Key:   "$set",
+				Value: update,
+			}},
+			options.FindOneAndUpdate().SetUpsert(true),
+		)
+
+		if err := request.Decode(&userData); err != nil {
+			fmt.Println(err)
 		}
 	}
 

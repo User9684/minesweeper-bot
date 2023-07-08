@@ -70,6 +70,18 @@ var Commands = []*discordgo.ApplicationCommand{
 		},
 	},
 	{
+		Name:        "profile",
+		Description: "Gets either your profile or a targets profile",
+		Options: []*discordgo.ApplicationCommandOption{
+			{
+				Type:        discordgo.ApplicationCommandOptionUser,
+				Name:        "target",
+				Description: "User to get the profile of",
+				Required:    false,
+			},
+		},
+	},
+	{
 		Name:        "admin",
 		Description: "Admin commands xd",
 		Options: []*discordgo.ApplicationCommandOption{
@@ -224,6 +236,14 @@ var Commands = []*discordgo.ApplicationCommand{
 				Type:        discordgo.ApplicationCommandOptionSubCommand,
 				Name:        "panic",
 				Description: "Purposely cause a panic",
+				Options: []*discordgo.ApplicationCommandOption{
+					{
+						Name:        "recover",
+						Description: "Recover the panic to prevent process kill",
+						Type:        discordgo.ApplicationCommandOptionBoolean,
+						Required:    true,
+					},
+				},
 			},
 		},
 	},

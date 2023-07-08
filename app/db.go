@@ -28,9 +28,26 @@ type PresenceData struct {
 	URL      string `bson:"url"`
 }
 
+type DifficultyData struct {
+	Wins   int64   `bson:"wins"`
+	Losses int64   `bson:"losses"`
+	PB     float64 `bson:"PB"`
+	PW     float64 `bson:"PW"`
+}
+
+type DifficultiesMap struct {
+	Easy   DifficultyData `bson:"easy"`
+	Medium DifficultyData `bson:"medium"`
+	Hard   DifficultyData `bson:"hard"`
+}
+
 type GuildData struct {
 	GuildID     string       `bson:"guildID"`
 	Leaderboard Leaderboards `bson:"timeLeaderboard"`
+}
+type UserData struct {
+	UserID       string                    `bson:"userID"`
+	Difficulties map[string]DifficultyData `bson:"difficulties"`
 }
 type Blacklist struct {
 	UserID  string `bson:"userID"`
@@ -49,6 +66,7 @@ type BotConfig struct {
 
 var Collections = []string{
 	"guilddata",
+	"userdata",
 	"blacklists",
 	"leaderboardmessages",
 	"botconfig",
@@ -146,6 +164,18 @@ func getGuildData(guildID string) GuildData {
 	guildData.GuildID = guildID
 
 	return guildData
+}
+
+func getUserData(userID string) UserData {
+	var userData UserData
+	filter := bson.D{{
+		Key:   "userID",
+		Value: userID,
+	}}
+	d.Collection("userdata").FindOne(context.TODO(), filter).Decode(&userData)
+	userData.UserID = userID
+
+	return userData
 }
 
 func getBlacklist(userID string) Blacklist {
