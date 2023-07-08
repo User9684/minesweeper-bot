@@ -118,7 +118,7 @@ func isInArray(value string, array []string) bool {
 
 func handlePanic(err interface{}) {
 	stackSplit := strings.Split(string(debug.Stack()), "\n")
-	stackTrace := strings.Join(append(stackSplit[:0], stackSplit[5:]...), "\n")
+	stackTrace := strings.Join(append(stackSplit[:1], stackSplit[5:]...), "\n")
 	log := fmt.Sprintf("Recovered from panic\n%v\n%s", err, stackTrace)
 
 	fmt.Println(log)

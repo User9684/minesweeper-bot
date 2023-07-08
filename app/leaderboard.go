@@ -174,7 +174,7 @@ func generateLeaderboardEmbed(guildID, guildName, difficultyString string) (disc
 			userString = user.Username
 		}
 
-		duration, err := time.ParseDuration(fmt.Sprintf("%vs", entry.Time))
+		duration, err := time.ParseDuration(fmt.Sprintf("%fs", entry.Time))
 		if err != nil {
 			fmt.Println(err)
 			return discordgo.MessageEmbed{}, err

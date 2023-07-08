@@ -115,6 +115,10 @@ func GenerateBoard(game *MinesweeperGame, firstGen, useSpotTypes bool) []discord
 				typeToUse = spot.Type
 			}
 
+			if useSpotTypes && spot.DisplayedType == minesweeper.Flag && spot.Type == minesweeper.Bomb {
+				typeToUse = minesweeper.Flag
+			}
+
 			if game.Won && spot.Type == minesweeper.Bomb {
 				typeToUse = minesweeper.Flag
 			}

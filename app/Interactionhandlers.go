@@ -705,6 +705,18 @@ func HandleBoard(s *discordgo.Session, i *discordgo.InteractionCreate, positionx
 	// Perform the appropriate action based on the FlagEnabled flag
 	switch game.FlagEnabled {
 	case true:
+		var event int
+		if spot.DisplayedType == minesweeper.Normal {
+			event = game.Game.ChordSpot(spot)
+		}
+		if event != minesweeper.Nothing {
+			// Handle the game end and respond with a deferred message update
+			HandleGameEnd(s, game, event, true)
+			go s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseDeferredMessageUpdate,
+			})
+			return
+		}
 		game.Game.FlagSpot(spot)
 
 	case false:

@@ -6,8 +6,6 @@ import (
 	"time"
 )
 
-var DaysPerMonth = 30.4167
-
 type Unit struct {
 	UnitString string
 	Seconds    float64
@@ -17,27 +15,27 @@ var daysPerMonth = 30.4167
 
 var timeOrder = []Unit{
 	{
-		UnitString: "decades",
+		UnitString: "decade",
 		Seconds:    60 * 60 * 24 * daysPerMonth * 12 * 10,
 	},
 	{
-		UnitString: "years",
+		UnitString: "year",
 		Seconds:    60 * 60 * 24 * daysPerMonth * 12,
 	},
 	{
-		UnitString: "months",
+		UnitString: "month",
 		Seconds:    60 * 60 * 24 * daysPerMonth,
 	},
 	{
-		UnitString: "days",
+		UnitString: "day",
 		Seconds:    60 * 60 * 24,
 	},
 	{
-		UnitString: "hours",
+		UnitString: "hour",
 		Seconds:    60 * 60,
 	},
 	{
-		UnitString: "minutes",
+		UnitString: "minute",
 		Seconds:    60,
 	},
 }
@@ -55,10 +53,15 @@ func HumanizeDuration(t time.Duration, secondPrecision int) string {
 			continue
 		}
 
-		times[unit.UnitString] = value
-		seconds -= times[unit.UnitString] * unit.Seconds
+		unitString := unit.UnitString
+		if value >= 2 {
+			unitString = fmt.Sprintf("%ss", unitString)
+		}
 
-		timestring = fmt.Sprintf("%s, %v %s", timestring, value, unit.UnitString)
+		times[unitString] = value
+		seconds -= times[unitString] * unit.Seconds
+
+		timestring = fmt.Sprintf("%s, %f %s", timestring, value, unitString)
 	}
 
 	if len(times) >= 1 {
