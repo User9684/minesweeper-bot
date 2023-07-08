@@ -18,7 +18,8 @@ Giving credit where credit is due, this bot was pretty much entirely ripped off 
 
 # Start Command
 If you do not already have a mongoDB host, run the command below
-- `docker-compose -f docker-compose.yml up`<br>
+- `docker-compose -f docker-compose.yml up`
+
 If you already have a mongoDB host, run the command below
 - `docker-compose -f docker-compose.bot.yml up`
 
