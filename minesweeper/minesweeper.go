@@ -197,7 +197,7 @@ func generateSpots(diff int) (map[string]*Spot, int) {
 		// Generate position.
 		key := getKey(rand.Intn(5), rand.Intn(5))
 
-		// Repeat until position is valid, or has tried 5 times.
+		// Repeat until position is valid, or has tried 10 times.
 		for tries := 0; (bombPositions[key] || ignoredPositions[key]) && tries <= 9; tries++ {
 			key = getKey(rand.Intn(5), rand.Intn(5))
 		}
