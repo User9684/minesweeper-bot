@@ -17,6 +17,11 @@ var RequestOption = func(cfg *discordgo.RequestConfig) {}
 // Map command names to their respected handler.
 var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
 	"ping": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		defer func() {
+			if err := recover(); err != nil {
+				handlePanic(err)
+			}
+		}()
 		// Respond with "PONG" initially.
 		content := "PONG"
 		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -69,6 +74,11 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 		}
 	},
 	"minesweeper": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		defer func() {
+			if err := recover(); err != nil {
+				handlePanic(err)
+			}
+		}()
 		// Convert options to map.
 		optionMap := mapOptions(i.ApplicationCommandData().Options)
 		userID, isGuild := getUserID(i)
@@ -187,6 +197,11 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 		Games[userID] = &newGame
 	},
 	"leaderboard": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		defer func() {
+			if err := recover(); err != nil {
+				handlePanic(err)
+			}
+		}()
 		// Respond with a deferred message update initially.
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
@@ -226,6 +241,11 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 		}
 	},
 	"admin": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		defer func() {
+			if err := recover(); err != nil {
+				handlePanic(err)
+			}
+		}()
 		userID, _ := getUserID(i)
 
 		// Check if the user is an admin.
@@ -387,15 +407,17 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 			}
 
 		case "restartticker":
+			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseDeferredMessageUpdate,
+			})
+
 			close(autoEditChannel)
 			editConfiguredMessages()
 			startAutoEdit()
-			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Content: "Restarted ticker.",
-					Flags:   1 << 6,
-				},
+
+			content := "Restarted ticker."
+			s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+				Content: &content,
 			})
 
 		case "presence":
@@ -504,6 +526,20 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 			}); err != nil {
 				cmdError(s, i, err)
 			}
+		case "panic":
+			if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Flags:   1 << 6,
+					Content: "Causing a PANIC...",
+				},
+			}); err != nil {
+				cmdError(s, i, err)
+				return
+			}
+
+			smallSlice := make([]int, 2)
+			_ = smallSlice[10]
 		}
 	},
 }
@@ -511,6 +547,11 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 // Map unique IDs of components to their respected handler.
 var ComponentHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
 	"minesweeperflagbutton": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		defer func() {
+			if err := recover(); err != nil {
+				handlePanic(err)
+			}
+		}()
 		// Get user ID from the interaction.
 		userID, _ := getUserID(i)
 
@@ -585,6 +626,11 @@ var ComponentHandlers = map[string]func(s *discordgo.Session, i *discordgo.Inter
 		}
 	},
 	"endgamebutton": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		defer func() {
+			if err := recover(); err != nil {
+				handlePanic(err)
+			}
+		}()
 		// Respond to the interaction with a deferred message update.
 		go s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseDeferredMessageUpdate,
@@ -615,6 +661,11 @@ var ComponentHandlers = map[string]func(s *discordgo.Session, i *discordgo.Inter
 
 // Handle user interactions to the minesweeper board.
 func HandleBoard(s *discordgo.Session, i *discordgo.InteractionCreate, positionx, positiony int) {
+	defer func() {
+		if err := recover(); err != nil {
+			handlePanic(err)
+		}
+	}()
 	// Retrieve the user ID and check if a game exists for the user
 	userID, _ := getUserID(i)
 	game, ok := Games[userID]
@@ -693,6 +744,11 @@ func HandleBoard(s *discordgo.Session, i *discordgo.InteractionCreate, positionx
 
 // mapOptions maps the options of an interaction to a map for easier access
 func mapOptions(options []*discordgo.ApplicationCommandInteractionDataOption) map[string]*discordgo.ApplicationCommandInteractionDataOption {
+	defer func() {
+		if err := recover(); err != nil {
+			handlePanic(err)
+		}
+	}()
 	optionMap := make(map[string]*discordgo.ApplicationCommandInteractionDataOption, len(options))
 
 	for _, opt := range options {
@@ -704,6 +760,11 @@ func mapOptions(options []*discordgo.ApplicationCommandInteractionDataOption) ma
 
 // getUserID retrieves the user ID from an interaction and determines if it's in a guild
 func getUserID(i *discordgo.InteractionCreate) (string, bool) {
+	defer func() {
+		if err := recover(); err != nil {
+			handlePanic(err)
+		}
+	}()
 	var inGuild bool
 	var userID string
 

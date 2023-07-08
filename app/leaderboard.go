@@ -17,6 +17,11 @@ import (
 var autoEditChannel chan struct{}
 
 func orderBySpot(entries []LeaderboardEntry) []LeaderboardEntry {
+	defer func() {
+		if err := recover(); err != nil {
+			handlePanic(err)
+		}
+	}()
 	orderedLeaderboard := make([]LeaderboardEntry, len(entries))
 
 	for _, entry := range entries {
@@ -49,6 +54,11 @@ func getLeaderboard(guildID string, difficulty int) []LeaderboardEntry {
 }
 
 func addToLeaderboard(guildID string, difficulty int, newEntry LeaderboardEntry) {
+	defer func() {
+		if err := recover(); err != nil {
+			handlePanic(err)
+		}
+	}()
 	currentLeaderboard := getLeaderboard(guildID, difficulty)
 	var dontReorder bool
 	// Remove duplicate ID if new is shorter in length.

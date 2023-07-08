@@ -220,6 +220,11 @@ var Commands = []*discordgo.ApplicationCommand{
 					},
 				},
 			},
+			{
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
+				Name:        "panic",
+				Description: "Purposely cause a panic",
+			},
 		},
 	},
 }

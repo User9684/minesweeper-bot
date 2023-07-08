@@ -260,7 +260,6 @@ var SarcasticGiveUpMessages = []string{
 }
 
 func getRandomMessage(messages []string) string {
-
 	index := rand.Intn(len(messages))
 	return messages[index]
 }

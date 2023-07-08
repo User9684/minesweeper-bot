@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/signal"
 	"regexp"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"syscall"
@@ -113,4 +114,37 @@ func isInArray(value string, array []string) bool {
 	}
 
 	return false
+}
+
+func handlePanic(err interface{}) {
+	stackSplit := strings.Split(string(debug.Stack()), "\n")
+	stackTrace := strings.Join(append(stackSplit[:0], stackSplit[5:]...), "\n")
+	log := fmt.Sprintf("Recovered from panic\n%v\n%s", err, stackTrace)
+
+	fmt.Println(log)
+
+	panicLog := os.Getenv("PANIC_CHANNEL")
+	panicMessage := os.Getenv("PANIC_MESSAGE")
+
+	if panicMessage == "" {
+		panicMessage = "Recovered from a panic!"
+	}
+
+	if panicLog == "" {
+		fmt.Println("No panic log channel set")
+		return
+	}
+
+	if _, err := s.ChannelMessageSendComplex(panicLog, &discordgo.MessageSend{
+		Content: panicMessage,
+		Files: []*discordgo.File{
+			{
+				Name:        "log.txt",
+				ContentType: "attachment",
+				Reader:      strings.NewReader(log),
+			},
+		},
+	}, RequestOption); err != nil {
+		fmt.Println(err)
+	}
 }

@@ -12,6 +12,11 @@ import (
 
 // Handles the end of the game and sends the appropriate message.
 func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int, addToBoard bool) {
+	defer func() {
+		if err := recover(); err != nil {
+			handlePanic(err)
+		}
+	}()
 	close(*game.EndGameChan)
 	// Calculate the time taken in the game and format it as a human-readable string.
 	gameDuration := time.Since(game.StartTime)
@@ -85,6 +90,11 @@ func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int, addTo
 
 // Generates the message components for the game board.
 func GenerateBoard(game *MinesweeperGame, firstGen, useSpotTypes bool) []discordgo.MessageComponent {
+	defer func() {
+		if err := recover(); err != nil {
+			handlePanic(err)
+		}
+	}()
 	var rows []discordgo.MessageComponent
 	var currentRow discordgo.ActionsRow
 

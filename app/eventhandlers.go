@@ -24,6 +24,11 @@ func RegisterEvents() {
 
 	// Interaction handler.
 	s.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		defer func() {
+			if err := recover(); err != nil {
+				handlePanic(err)
+			}
+		}()
 		var ignoreBlacklist bool
 
 		if i.Type == discordgo.InteractionApplicationCommand &&
@@ -58,6 +63,11 @@ func RegisterEvents() {
 
 // Handle application command interactions.
 func HandleCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	defer func() {
+		if err := recover(); err != nil {
+			handlePanic(err)
+		}
+	}()
 	userid, _ := getUserID(i)
 	commandData := i.ApplicationCommandData()
 	if handler, ok := CommandHandlers[commandData.Name]; ok {
@@ -83,6 +93,11 @@ func HandleCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 // Handle message component interactions.
 func HandleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	defer func() {
+		if err := recover(); err != nil {
+			handlePanic(err)
+		}
+	}()
 	customID := i.MessageComponentData().CustomID
 
 	boardPositionMatches := BoardPositionRegex.FindAllStringSubmatch(customID, -1)
