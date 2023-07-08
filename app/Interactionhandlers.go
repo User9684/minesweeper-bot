@@ -333,6 +333,10 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 			},
 		}
 
+		if user.AccentColor != 0 {
+			embed.Color = user.AccentColor
+		}
+
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
