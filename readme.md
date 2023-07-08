@@ -1,3 +1,6 @@
+# Inspiration
+Giving credit where credit is due, this bot was pretty much entirely ripped off of [worldscutestvoid](https://github.com/cmsteffey)'s bot
+
 # Features
 - Minesweeper, three difficulties
 - Server-Specific leaderboard
