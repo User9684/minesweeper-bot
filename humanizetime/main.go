@@ -61,7 +61,7 @@ func HumanizeDuration(t time.Duration, secondPrecision int) string {
 		times[unitString] = value
 		seconds -= times[unitString] * unit.Seconds
 
-		timestring = fmt.Sprintf("%s, %f %s", timestring, value, unitString)
+		timestring = fmt.Sprintf("%s, %.0f %s", timestring, value, unitString)
 	}
 
 	if len(times) >= 1 {

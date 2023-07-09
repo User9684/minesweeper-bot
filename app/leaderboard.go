@@ -6,6 +6,7 @@ import (
 	"main/humanizetime"
 	"main/minesweeper"
 	"math/rand"
+	"sort"
 	"strings"
 	"time"
 
@@ -80,18 +81,16 @@ func addToLeaderboard(guildID string, difficulty int, newEntry LeaderboardEntry)
 	}
 
 	if !dontReorder {
-		newEntry.Spot = len(currentLeaderboard)
-
-		for i, leaderboardEntry := range currentLeaderboard {
-			if leaderboardEntry.Time > newEntry.Time {
-				newEntry.Spot--
-				currentLeaderboard[i].Spot++
-				continue
-			}
-			break
-		}
-
 		currentLeaderboard = append(currentLeaderboard, newEntry)
+		sort.Slice(currentLeaderboard, func(i, j int) bool {
+			return currentLeaderboard[i].Time < currentLeaderboard[j].Time
+		})
+
+		for spot := range currentLeaderboard {
+			entry := currentLeaderboard[spot]
+			entry.Spot = spot
+			currentLeaderboard[spot] = entry
+		}
 	}
 
 	currentLeaderboard = orderBySpot(currentLeaderboard)
