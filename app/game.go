@@ -6,6 +6,7 @@ import (
 	"main/humanizetime"
 	"main/minesweeper"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -32,14 +33,19 @@ func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int, addTo
 		timeString = "\nyou never even started the game.."
 	}
 
+	boardContent := ""
+
 	// Determine the content string based on the event that caused the game to end.
 	content := fmt.Sprintf("<@!%s> ", game.UserID)
 	switch event {
 	case minesweeper.ManualEnd:
 		content += getRandomMessage(SarcasticGiveUpMessages)
+		boardContent = "LOL, giving up already?"
 	case minesweeper.TimedEnd:
 		content += getRandomMessage(SarcasticTimeOverMessages)
+		boardContent = "Jesus christ, it does NOT take that long!"
 	case minesweeper.Lost:
+		boardContent = "Game over. LOL."
 		content += getRandomMessage(SarcasticLostMessages)
 
 		userData := getUserData(game.UserID)
@@ -80,6 +86,7 @@ func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int, addTo
 			fmt.Println(err)
 		}
 	case minesweeper.Won:
+		boardContent = "Wow, you managed to win!"
 		game.Won = true
 
 		messages := getMessages(int64(gameDuration.Seconds()))
@@ -149,6 +156,7 @@ func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int, addTo
 			fmt.Println(err)
 		}
 	}
+	boardContent += fmt.Sprintf("\n<@!%s>'s **%s** minesweeper game", game.UserID, strings.ToUpper(game.Difficulty))
 
 	// Send a message to the channel with the game result and time information.
 	_, err := s.ChannelMessageSendComplex(game.ChannelID, &discordgo.MessageSend{
@@ -164,7 +172,6 @@ func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int, addTo
 	}
 
 	// Update the game board message with the final state of the board.
-	boardContent := "Game over. LOL."
 	_, err = s.ChannelMessageEditComplex(&discordgo.MessageEdit{
 		Content:    &boardContent,
 		Components: GenerateBoard(game, false, true),
