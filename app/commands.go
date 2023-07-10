@@ -91,7 +91,7 @@ var Commands = []*discordgo.ApplicationCommand{
 				Description: "blacklist a nerd",
 				Options: []*discordgo.ApplicationCommandOption{
 					{
-						Name:        "user",
+						Name:        "target",
 						Description: "nerd to blacklist",
 						Type:        discordgo.ApplicationCommandOptionUser,
 						Required:    true,
@@ -110,7 +110,7 @@ var Commands = []*discordgo.ApplicationCommand{
 				Description: "unblacklist a nerd",
 				Options: []*discordgo.ApplicationCommandOption{
 					{
-						Name:        "user",
+						Name:        "target",
 						Description: "nerd to unblacklist",
 						Type:        discordgo.ApplicationCommandOptionUser,
 						Required:    true,
@@ -156,7 +156,7 @@ var Commands = []*discordgo.ApplicationCommand{
 				Description: "Force a minesweeper win for a user",
 				Options: []*discordgo.ApplicationCommandOption{
 					{
-						Name:        "user",
+						Name:        "target",
 						Description: "winner winner chicken dinner",
 						Type:        discordgo.ApplicationCommandOptionUser,
 						Required:    true,
@@ -169,7 +169,7 @@ var Commands = []*discordgo.ApplicationCommand{
 				Description: "Reveal all the spots for a user's game",
 				Options: []*discordgo.ApplicationCommandOption{
 					{
-						Name:        "user",
+						Name:        "target",
 						Description: "user's game to view",
 						Type:        discordgo.ApplicationCommandOptionUser,
 						Required:    true,
@@ -241,6 +241,25 @@ var Commands = []*discordgo.ApplicationCommand{
 						Name:        "recover",
 						Description: "Recover the panic to prevent process kill",
 						Type:        discordgo.ApplicationCommandOptionBoolean,
+						Required:    true,
+					},
+				},
+			},
+			{
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
+				Name:        "custom",
+				Description: "Generate a custom bomb count minesweeper game for a user (won't show up in any stats)",
+				Options: []*discordgo.ApplicationCommandOption{
+					{
+						Name:        "bombs",
+						Description: "Bomb count",
+						Type:        discordgo.ApplicationCommandOptionInteger,
+						Required:    true,
+					},
+					{
+						Name:        "target",
+						Description: "User to generate the game for",
+						Type:        discordgo.ApplicationCommandOptionUser,
 						Required:    true,
 					},
 				},

@@ -124,86 +124,14 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 		var Game *minesweeper.Game
 		switch optionMap["difficulty"].Value {
 		case "easy":
-			Game = minesweeper.NewGame(minesweeper.Easy)
+			Game = minesweeper.NewGame(minesweeper.Easy, 0)
 		case "medium":
-			Game = minesweeper.NewGame(minesweeper.Medium)
+			Game = minesweeper.NewGame(minesweeper.Medium, 0)
 		case "hard":
-			Game = minesweeper.NewGame(minesweeper.Hard)
+			Game = minesweeper.NewGame(minesweeper.Hard, 0)
 		}
 
-		// Create a new MinesweeperGame object to store game information.
-		newGame := MinesweeperGame{
-			UserID:     userID,
-			GuildID:    i.GuildID,
-			ChannelID:  i.ChannelID,
-			Game:       Game,
-			Difficulty: fmt.Sprintf("%v", optionMap["difficulty"].Value),
-		}
-
-		// Send the initial message with the game board.
-		content := "Click the <:clickme:1119511692825604096> to start the game!"
-		board := GenerateBoard(&newGame, true, false)
-		msg, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
-			Content:    &content,
-			Components: &board,
-		})
-		if err != nil {
-			cmdError(s, i, err)
-			return
-		}
-
-		// Add flag and end game buttons to the message.
-		flagRow := discordgo.ActionsRow{}
-		flagRow.Components = append(flagRow.Components, &discordgo.Button{
-			CustomID: "minesweeperflagbutton",
-			Style:    discordgo.DangerButton,
-			Label:    "OFF",
-			Emoji: discordgo.ComponentEmoji{
-				Name: "🚩",
-			},
-		}, &discordgo.Button{
-			CustomID: "endgamebutton",
-			Style:    discordgo.DangerButton,
-			Label:    "End game",
-		})
-
-		// Send the flag and end game buttons as a separate message.
-		flagMsg, err := s.ChannelMessageSendComplex(msg.ChannelID, &discordgo.MessageSend{
-			Reference:  msg.Reference(),
-			Components: []discordgo.MessageComponent{flagRow},
-		}, RequestOption)
-		if err != nil {
-			cmdError(s, i, err)
-			return
-		}
-
-		// Update the new game object with message IDs.
-		newGame.BoardID = msg.ID
-		newGame.FlagID = flagMsg.ID
-
-		// Configure automatic end game timer.
-		timer := time.NewTimer(time.Duration(EndAfter) * time.Second)
-		channel := make(chan struct{})
-		newGame.EndGameChan = &channel
-
-		// Start automatic end game timer.
-		if EndAfter != 0 {
-			go func() {
-				for {
-					select {
-					case <-timer.C:
-						HandleGameEnd(s, &newGame, minesweeper.TimedEnd, false)
-						return
-					case <-channel:
-						timer.Stop()
-						return
-					}
-				}
-			}()
-		}
-
-		// Store the new game object in the Games map.
-		Games[userID] = &newGame
+		StartGame(s, i, Game, fmt.Sprintf("%v", optionMap["difficulty"].Value), userID)
 	},
 	"leaderboard": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		defer func() {
@@ -347,7 +275,6 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 				&embed,
 			},
 		})
-
 	},
 	"admin": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		var ignoreRecover bool
@@ -381,7 +308,7 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 
 		switch subcommand.Name {
 		case "blacklist":
-			target := optionMap["user"].UserValue(s).ID
+			target := optionMap["target"].UserValue(s).ID
 			var message string
 			if msg, ok := optionMap["message"]; ok {
 				message = msg.StringValue()
@@ -405,7 +332,7 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 			}
 
 		case "unblacklist":
-			target := optionMap["user"].UserValue(s).ID
+			target := optionMap["target"].UserValue(s).ID
 
 			unblacklistUser(target)
 
@@ -460,7 +387,7 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 			}
 
 		case "win":
-			target := optionMap["user"].UserValue(s).ID
+			target := optionMap["target"].UserValue(s).ID
 			game, ok := Games[target]
 			// Check if the user has a game open.
 			if !ok {
@@ -491,7 +418,7 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 			HandleGameEnd(s, game, minesweeper.Won, false)
 
 		case "reveal":
-			target := optionMap["user"].UserValue(s).ID
+			target := optionMap["target"].UserValue(s).ID
 			game, ok := Games[target]
 			// Check if the user has a game open.
 			if !ok {
@@ -657,6 +584,21 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 
 			smallSlice := make([]int, 2)
 			_ = smallSlice[10]
+		case "custom":
+			bombs := optionMap["bombs"].IntValue()
+			target := optionMap["target"].UserValue(s).ID
+
+			// Respond with a deferred message update initially.
+			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+			})
+
+			if bombs >= 0 {
+				bombs = 1
+			}
+
+			Game := minesweeper.NewGame(minesweeper.Custom, int(bombs))
+			StartGame(s, i, Game, "custom", target)
 		}
 	},
 }

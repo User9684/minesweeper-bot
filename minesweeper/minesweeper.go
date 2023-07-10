@@ -19,6 +19,7 @@ const (
 	Easy = iota
 	Medium
 	Hard
+	Custom
 )
 
 // Outcomes.
@@ -47,8 +48,8 @@ type Game struct {
 	TotalBombs   int
 }
 
-func NewGame(dif int) *Game {
-	spots, bombCount := generateSpots(dif)
+func NewGame(dif, customBombCount int) *Game {
+	spots, bombCount := generateSpots(dif, customBombCount)
 	game := &Game{
 		Spots:        spots,
 		VisitedZeros: make(map[string]bool),
@@ -163,7 +164,12 @@ func (g *Game) FindSpot(X, Y int) *Spot {
 }
 
 // Generates spots for the game to use.
-func generateSpots(diff int) (map[string]*Spot, int) {
+func generateSpots(diff, customBombCount int) (map[string]*Spot, int) {
+	targetBombCount := 4 + (diff * 2)
+	if customBombCount != 0 {
+		targetBombCount = customBombCount - 1
+	}
+
 	Spots := make(map[string]*Spot)
 
 	// Generate random start position.
@@ -193,7 +199,7 @@ func generateSpots(diff int) (map[string]*Spot, int) {
 
 	// Generate bomb positions.
 	bombPositions := make(map[string]bool)
-	for i := 0; i <= 4+(diff*2); i++ {
+	for i := 0; i <= targetBombCount; i++ {
 		// Generate position.
 		key := getKey(rand.Intn(5), rand.Intn(5))
 

@@ -14,6 +14,82 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+func StartGame(s *discordgo.Session, i *discordgo.InteractionCreate, Game *minesweeper.Game, Difficulty, userID string) {
+	// Create a new MinesweeperGame object to store game information.
+	newGame := MinesweeperGame{
+		UserID:     userID,
+		GuildID:    i.GuildID,
+		ChannelID:  i.ChannelID,
+		Game:       Game,
+		Difficulty: Difficulty,
+	}
+
+	// Send the initial message with the game board.
+	content := "Click the <:clickme:1119511692825604096> to start the game!"
+	board := GenerateBoard(&newGame, true, false)
+	msg, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+		Content:    &content,
+		Components: &board,
+	})
+	if err != nil {
+		cmdError(s, i, err)
+		return
+	}
+
+	// Add flag and end game buttons to the message.
+	flagRow := discordgo.ActionsRow{}
+	flagRow.Components = append(flagRow.Components, &discordgo.Button{
+		CustomID: "minesweeperflagbutton",
+		Style:    discordgo.DangerButton,
+		Label:    "OFF",
+		Emoji: discordgo.ComponentEmoji{
+			Name: "🚩",
+		},
+	}, &discordgo.Button{
+		CustomID: "endgamebutton",
+		Style:    discordgo.DangerButton,
+		Label:    "End game",
+	})
+
+	// Send the flag and end game buttons as a separate message.
+	flagMsg, err := s.ChannelMessageSendComplex(msg.ChannelID, &discordgo.MessageSend{
+		Reference:  msg.Reference(),
+		Components: []discordgo.MessageComponent{flagRow},
+	}, RequestOption)
+	if err != nil {
+		cmdError(s, i, err)
+		return
+	}
+
+	// Update the new game object with message IDs.
+	newGame.BoardID = msg.ID
+	newGame.FlagID = flagMsg.ID
+
+	// Configure automatic end game timer.
+	timer := time.NewTimer(time.Duration(EndAfter) * time.Second)
+	channel := make(chan struct{})
+	newGame.EndGameChan = &channel
+
+	// Start automatic end game timer.
+	if EndAfter != 0 {
+		go func() {
+			for {
+				select {
+				case <-timer.C:
+					HandleGameEnd(s, &newGame, minesweeper.TimedEnd, false)
+					return
+				case <-channel:
+					timer.Stop()
+					return
+				}
+			}
+		}()
+	}
+
+	// Store the new game object in the Games map.
+	Games[userID] = &newGame
+}
+
 // Handles the end of the game and sends the appropriate message.
 func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int, addToBoard bool) {
 	defer func() {
@@ -47,6 +123,10 @@ func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int, addTo
 	case minesweeper.Lost:
 		boardContent = "Game over. LOL."
 		content += getRandomMessage(SarcasticLostMessages)
+
+		if game.Difficulty == "custom" {
+			break
+		}
 
 		userData := getUserData(game.UserID)
 
@@ -97,6 +177,9 @@ func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int, addTo
 
 		content += getRandomMessage(messages)
 		if !addToBoard {
+			break
+		}
+		if game.Difficulty == "custom" {
 			break
 		}
 		entry := LeaderboardEntry{
