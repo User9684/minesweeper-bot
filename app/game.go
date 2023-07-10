@@ -48,6 +48,8 @@ func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int, addTo
 
 		dd.Losses++
 
+		userData.Difficulties[game.Difficulty] = dd
+
 		filter := bson.D{{
 			Key:   "userID",
 			Value: game.UserID,
