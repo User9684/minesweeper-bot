@@ -255,6 +255,11 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 				handlePanic(err)
 			}
 		}()
+		// Respond with a deferred message update initially.
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+		})
+
 		// Convert options to map.
 		optionMap := mapOptions(i.ApplicationCommandData().Options)
 		userID, _ := getUserID(i)
@@ -337,12 +342,9 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 			embed.Color = user.AccentColor
 		}
 
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Embeds: []*discordgo.MessageEmbed{
-					&embed,
-				},
+		s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+			Embeds: &[]*discordgo.MessageEmbed{
+				&embed,
 			},
 		})
 
