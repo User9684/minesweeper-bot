@@ -593,7 +593,7 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 				Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
 			})
 
-			if bombs >= 0 {
+			if bombs <= 0 {
 				bombs = 1
 			}
 
