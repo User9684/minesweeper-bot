@@ -41,21 +41,23 @@ type Spot struct {
 }
 
 type Game struct {
-	Spots        map[string]*Spot
-	VisitedZeros map[string]bool
-	Difficulty   int
-	SpotsLeft    int
-	TotalBombs   int
+	Spots            map[string]*Spot
+	VisitedZeros     map[string]bool
+	Difficulty       int
+	SpotsLeft        int
+	TotalBombs       int
+	HasStartPosition bool
 }
 
-func NewGame(dif, customBombCount int) *Game {
-	spots, bombCount := generateSpots(dif, customBombCount)
+func NewGame(dif, customBombCount int, allowSurroundingBombs, noStartPosition bool) *Game {
+	spots, bombCount := generateSpots(dif, customBombCount, allowSurroundingBombs, noStartPosition)
 	game := &Game{
-		Spots:        spots,
-		VisitedZeros: make(map[string]bool),
-		Difficulty:   dif,
-		SpotsLeft:    (5 * 5) - bombCount,
-		TotalBombs:   bombCount,
+		Spots:            spots,
+		VisitedZeros:     make(map[string]bool),
+		Difficulty:       dif,
+		SpotsLeft:        (5 * 5) - bombCount,
+		TotalBombs:       bombCount,
+		HasStartPosition: !noStartPosition,
 	}
 
 	return game
@@ -164,7 +166,7 @@ func (g *Game) FindSpot(X, Y int) *Spot {
 }
 
 // Generates spots for the game to use.
-func generateSpots(diff, customBombCount int) (map[string]*Spot, int) {
+func generateSpots(diff, customBombCount int, allowSurroundingBombs, noStartPosition bool) (map[string]*Spot, int) {
 	targetBombCount := 4 + (diff * 2)
 	if customBombCount != 0 {
 		targetBombCount = customBombCount - 1
@@ -178,24 +180,28 @@ func generateSpots(diff, customBombCount int) (map[string]*Spot, int) {
 	startPositionKey := getKey(sx, sy)
 
 	ignoredPositions := map[string]bool{}
-	bsx := sx - 1
-	bsy := sy - 1
-	for y := 0; y <= 2; y++ {
-		for x := 0; x <= 2; x++ {
-			newx := bsx + x
-			newy := bsy + y
-			if newx >= 5 || newx < 0 {
-				continue
+	if !allowSurroundingBombs {
+		bsx := sx - 1
+		bsy := sy - 1
+		for y := 0; y <= 2; y++ {
+			for x := 0; x <= 2; x++ {
+				newx := bsx + x
+				newy := bsy + y
+				if newx >= 5 || newx < 0 {
+					continue
+				}
+				if newy >= 5 || newy < 0 {
+					continue
+				}
+				newIgnoredKey := getKey(newx, newy)
+				ignoredPositions[newIgnoredKey] = true
 			}
-			if newy >= 5 || newy < 0 {
-				continue
-			}
-			newIgnoredKey := getKey(newx, newy)
-			ignoredPositions[newIgnoredKey] = true
 		}
 	}
 
-	ignoredPositions[startPositionKey] = true
+	if !noStartPosition {
+		ignoredPositions[startPositionKey] = true
+	}
 
 	// Generate bomb positions.
 	bombPositions := make(map[string]bool)
@@ -265,7 +271,9 @@ func generateSpots(diff, customBombCount int) (map[string]*Spot, int) {
 		}
 	}
 
-	Spots[startPositionKey].DisplayedType = StartHere
+	if !noStartPosition {
+		Spots[startPositionKey].DisplayedType = StartHere
+	}
 
 	return Spots, len(bombPositions)
 }

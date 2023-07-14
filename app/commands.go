@@ -38,6 +38,30 @@ var Commands = []*discordgo.ApplicationCommand{
 		},
 	},
 	{
+		Name:        "custom",
+		Description: "Generate a custom minesweeper game",
+		Options: []*discordgo.ApplicationCommandOption{
+			{
+				Name:        "bombs",
+				Description: "Bomb count",
+				Type:        discordgo.ApplicationCommandOptionInteger,
+				Required:    true,
+			},
+			{
+				Name:        "surroundingbombs",
+				Description: "Allow bombs to be placed surrounding the start spot. Ignored if nostartspot enabled.",
+				Type:        discordgo.ApplicationCommandOptionBoolean,
+				Required:    true,
+			},
+			{
+				Name:        "nostartspot",
+				Description: "Allow the user to start game in any spot",
+				Type:        discordgo.ApplicationCommandOptionBoolean,
+				Required:    true,
+			},
+		},
+	},
+	{
 		Name:        "leaderboard",
 		Description: "Gets the leaderboard for the current server, or global.",
 		Options: []*discordgo.ApplicationCommandOption{
@@ -241,25 +265,6 @@ var Commands = []*discordgo.ApplicationCommand{
 						Name:        "recover",
 						Description: "Recover the panic to prevent process kill",
 						Type:        discordgo.ApplicationCommandOptionBoolean,
-						Required:    true,
-					},
-				},
-			},
-			{
-				Type:        discordgo.ApplicationCommandOptionSubCommand,
-				Name:        "custom",
-				Description: "Generate a custom bomb count minesweeper game for a user (won't show up in any stats)",
-				Options: []*discordgo.ApplicationCommandOption{
-					{
-						Name:        "bombs",
-						Description: "Bomb count",
-						Type:        discordgo.ApplicationCommandOptionInteger,
-						Required:    true,
-					},
-					{
-						Name:        "target",
-						Description: "User to generate the game for",
-						Type:        discordgo.ApplicationCommandOptionUser,
 						Required:    true,
 					},
 				},

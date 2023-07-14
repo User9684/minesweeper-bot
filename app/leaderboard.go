@@ -194,9 +194,8 @@ func editConfiguredMessages() {
 	messages := getLeaderboardMessages()
 
 	for _, message := range messages {
-		guild, err := s.Guild(message.GuildID)
+		guild, err := s.State.Guild(message.GuildID)
 		if err != nil {
-			removeLeaderboardMessage(message.MessageID)
 			fmt.Println(err)
 			continue
 		}

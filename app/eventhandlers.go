@@ -3,9 +3,57 @@ package main
 import (
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
+
+type cachedUser struct {
+	User       *discordgo.User
+	LastAccess int64
+	StopTimer  chan struct{}
+}
+
+// Cache userIDs to user objects.
+var userCache = make(map[string]*cachedUser)
+
+// Gets user from cache if present, else fetch from API.
+func getUser(userid string, recache bool) (user *discordgo.User, err error) {
+	cachedUserData, ok := userCache[userid]
+	if ok && !recache {
+		return cachedUserData.User, nil
+	}
+	if ok && cachedUserData.LastAccess <= 5*60 {
+		return cachedUserData.User, nil
+	}
+
+	user, err = s.User(userid, RequestOption)
+	if err != nil {
+		return
+	}
+
+	channel := make(chan struct{})
+	timer := time.NewTimer(time.Duration(15 * time.Minute))
+	go func() {
+		for {
+			select {
+			case <-timer.C:
+				delete(userCache, userid)
+				return
+			case <-channel:
+				timer.Stop()
+				return
+			}
+		}
+	}()
+	userCache[userid] = &cachedUser{
+		User:       user,
+		LastAccess: time.Now().Unix(),
+		StopTimer:  channel,
+	}
+
+	return
+}
 
 // RegisterEvents registers the event handlers.
 func RegisterEvents() {
@@ -52,11 +100,25 @@ func RegisterEvents() {
 			return
 		}
 
+		getUser(userID, false)
+
 		switch i.Type {
 		case discordgo.InteractionApplicationCommand:
 			HandleCommand(s, i)
 		case discordgo.InteractionMessageComponent:
 			HandleComponent(s, i)
+		}
+	})
+
+	s.AddHandler(func(s *discordgo.Session, i *discordgo.UserUpdate) {
+		defer func() {
+			if err := recover(); err != nil {
+				handlePanic(err)
+			}
+		}()
+
+		if _, err := getUser(i.User.ID, true); err != nil {
+			fmt.Println(err)
 		}
 	})
 }

@@ -124,14 +124,43 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 		var Game *minesweeper.Game
 		switch optionMap["difficulty"].Value {
 		case "easy":
-			Game = minesweeper.NewGame(minesweeper.Easy, 0)
+			Game = minesweeper.NewGame(minesweeper.Easy, 0, false, false)
 		case "medium":
-			Game = minesweeper.NewGame(minesweeper.Medium, 0)
+			Game = minesweeper.NewGame(minesweeper.Medium, 0, false, false)
 		case "hard":
-			Game = minesweeper.NewGame(minesweeper.Hard, 0)
+			Game = minesweeper.NewGame(minesweeper.Hard, 0, false, false)
 		}
 
 		StartGame(s, i, Game, fmt.Sprintf("%v", optionMap["difficulty"].Value), userID)
+	},
+	"custom": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		defer func() {
+			if err := recover(); err != nil {
+				handlePanic(err)
+			}
+		}()
+
+		optionMap := mapOptions(i.ApplicationCommandData().Options)
+		userID, _ := getUserID(i)
+
+		bombs := optionMap["bombs"].IntValue()
+		allowSurroundingBombs := optionMap["surroundingbombs"].BoolValue()
+		noStartSpot := optionMap["nostartspot"].BoolValue()
+
+		// Respond with a deferred message update initially.
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+		})
+
+		if bombs <= 0 {
+			bombs = 1
+		}
+		if bombs >= 24 {
+			bombs = 24
+		}
+
+		Game := minesweeper.NewGame(minesweeper.Custom, int(bombs), allowSurroundingBombs, noStartSpot)
+		StartGame(s, i, Game, "custom", userID)
 	},
 	"leaderboard": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		defer func() {
@@ -210,7 +239,7 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 
 		var userString string
 		var userImage string
-		user, err := s.User(targetID, RequestOption)
+		user, err := getUser(targetID, false)
 		if err != nil {
 			fmt.Println(err)
 			userString = targetID
@@ -584,21 +613,6 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 
 			smallSlice := make([]int, 2)
 			_ = smallSlice[10]
-		case "custom":
-			bombs := optionMap["bombs"].IntValue()
-			target := optionMap["target"].UserValue(s).ID
-
-			// Respond with a deferred message update initially.
-			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
-			})
-
-			if bombs <= 0 {
-				bombs = 1
-			}
-
-			Game := minesweeper.NewGame(minesweeper.Custom, int(bombs))
-			StartGame(s, i, Game, "custom", target)
 		}
 	},
 }

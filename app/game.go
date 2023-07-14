@@ -26,7 +26,10 @@ func StartGame(s *discordgo.Session, i *discordgo.InteractionCreate, Game *mines
 
 	// Send the initial message with the game board.
 	content := "Click the <:clickme:1119511692825604096> to start the game!"
-	board := GenerateBoard(&newGame, true, false)
+	if !Game.HasStartPosition {
+		content = "Click anywhere to start the game!"
+	}
+	board := GenerateBoard(&newGame, Game.HasStartPosition, false)
 	msg, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 		Content:    &content,
 		Components: &board,

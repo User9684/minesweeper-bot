@@ -3,6 +3,7 @@ Giving credit where credit is due, this bot was pretty much entirely ripped off 
 
 # Features
 - Minesweeper, three difficulties
+- Custom Minesweeper game command
 - Server-Specific leaderboard
 - Global leaderboard
 
