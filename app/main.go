@@ -8,6 +8,7 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -36,6 +37,7 @@ var s *discordgo.Session
 var c *mongo.Client
 var d *mongo.Database
 var Games = make(map[string]*MinesweeperGame)
+var ChannelMutex = make(map[string]*sync.Mutex)
 var BoardPositionRegex = regexp.MustCompile(`boardx(\d+)y(\d+)`)
 var MessageLinkRegex = regexp.MustCompile(`(?:http(?:s)?://)(?:(?:canary|ptb).)?discord.com/channels/(\d+|@me)/(\d+)/(\d+)`)
 var UserStatsFormatString = "**Wins:** %d\n**Losses:** %d\n**Personal Best:** %s\n**Personal Worst:** %s"

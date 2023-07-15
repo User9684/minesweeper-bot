@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -119,6 +120,17 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
 		})
+
+		// Lock thread if a minesweeper command is being processed in this channel.
+		// This is to prevent the situation shown in ../ai4aeISn.png.
+		mutex, ok := ChannelMutex[i.ChannelID]
+		if !ok {
+			newMutex := &sync.Mutex{}
+			mutex = newMutex
+			ChannelMutex[i.ChannelID] = newMutex
+		}
+		mutex.Lock()
+		defer mutex.Unlock()
 
 		// Create a new game based on the selected difficulty.
 		var Game *minesweeper.Game
@@ -789,6 +801,10 @@ func HandleBoard(s *discordgo.Session, i *discordgo.InteractionCreate, positionx
 				Type: discordgo.InteractionResponseDeferredMessageUpdate,
 			})
 			return
+		}
+		if spot.DisplayedType == minesweeper.StartHere {
+			game.Game.VisitSpot(spot)
+			break
 		}
 		game.Game.FlagSpot(spot)
 
