@@ -17,11 +17,12 @@ import (
 func StartGame(s *discordgo.Session, i *discordgo.InteractionCreate, Game *minesweeper.Game, Difficulty, userID string) {
 	// Create a new MinesweeperGame object to store game information.
 	newGame := MinesweeperGame{
-		UserID:     userID,
-		GuildID:    i.GuildID,
-		ChannelID:  i.ChannelID,
-		Game:       Game,
-		Difficulty: Difficulty,
+		UserID:       userID,
+		GuildID:      i.GuildID,
+		ChannelID:    i.ChannelID,
+		Game:         Game,
+		Difficulty:   Difficulty,
+		Achievements: make(map[int]Achievement),
 	}
 
 	// Send the initial message with the game board.
@@ -116,6 +117,14 @@ func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int, addTo
 
 	// Determine the content string based on the event that caused the game to end.
 	content := fmt.Sprintf("<@!%s> ", game.UserID)
+	userData := getUserData(game.UserID)
+	if userData.Difficulties == nil {
+		userData.Difficulties = make(map[string]DifficultyData)
+	}
+	if userData.Achivements == nil {
+		userData.Achivements = make(map[int]bool)
+	}
+
 	switch event {
 	case minesweeper.ManualEnd:
 		content += getRandomMessage(SarcasticGiveUpMessages)
@@ -131,43 +140,11 @@ func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int, addTo
 			break
 		}
 
-		userData := getUserData(game.UserID)
-
 		dd := userData.Difficulties[game.Difficulty]
 
 		dd.Losses++
 
 		userData.Difficulties[game.Difficulty] = dd
-
-		filter := bson.D{{
-			Key:   "userID",
-			Value: game.UserID,
-		}}
-
-		data, err := bson.Marshal(userData)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-
-		var update bson.M
-		if err := bson.Unmarshal(data, &update); err != nil {
-			return
-		}
-
-		request := d.Collection("userdata").FindOneAndUpdate(
-			context.TODO(),
-			filter,
-			bson.D{{
-				Key:   "$set",
-				Value: update,
-			}},
-			options.FindOneAndUpdate().SetUpsert(true),
-		)
-
-		if err := request.Decode(&userData); err != nil {
-			fmt.Println(err)
-		}
 	case minesweeper.Won:
 		boardContent = "Wow, you managed to win!"
 		game.Won = true
@@ -195,8 +172,6 @@ func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int, addTo
 		}
 		addToLeaderboard("global", game.Game.Difficulty, entry)
 
-		userData := getUserData(game.UserID)
-
 		dd := userData.Difficulties[game.Difficulty]
 
 		dd.Wins++
@@ -211,49 +186,68 @@ func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int, addTo
 			userData.Difficulties = map[string]DifficultyData{}
 		}
 		userData.Difficulties[game.Difficulty] = dd
-
-		filter := bson.D{{
-			Key:   "userID",
-			Value: game.UserID,
-		}}
-
-		data, err := bson.Marshal(userData)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-
-		var update bson.M
-		if err := bson.Unmarshal(data, &update); err != nil {
-			return
-		}
-
-		request := d.Collection("userdata").FindOneAndUpdate(
-			context.TODO(),
-			filter,
-			bson.D{{
-				Key:   "$set",
-				Value: update,
-			}},
-			options.FindOneAndUpdate().SetUpsert(true),
-		)
-
-		if err := request.Decode(&userData); err != nil {
-			fmt.Println(err)
-		}
 	}
-	boardContent += fmt.Sprintf("\n<@!%s>'s **%s** minesweeper game", game.UserID, strings.ToUpper(game.Difficulty))
+	var embeds []*discordgo.MessageEmbed
 
+	if len(game.Achievements) > 0 {
+		newEmbed := &discordgo.MessageEmbed{}
+		newEmbed.Color = randomEmbedColor()
+		newEmbed.Title = "Achievements Unlocked"
+		newEmbed.Timestamp = time.Now().Format(time.RFC3339)
+
+		for ID, achivement := range game.Achievements {
+			// I really hate nesting if statements, but I have no clue how else I would do this.
+			if userData.Achivements[ID] {
+				continue
+			}
+			userData.Achivements[ID] = true
+			newEmbed.Description += fmt.Sprintf("**%s:** %s\n", achivement.Name, achivement.Description)
+		}
+		embeds = append(embeds, newEmbed)
+	}
+
+	// Update userdata record in database.
+	filter := bson.D{{
+		Key:   "userID",
+		Value: game.UserID,
+	}}
+
+	data, err := bson.Marshal(userData)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	var update bson.M
+	if err := bson.Unmarshal(data, &update); err != nil {
+		return
+	}
+
+	request := d.Collection("userdata").FindOneAndUpdate(
+		context.TODO(),
+		filter,
+		bson.D{{
+			Key:   "$set",
+			Value: update,
+		}},
+		options.FindOneAndUpdate().SetUpsert(true),
+	)
+
+	if err := request.Decode(&userData); err != nil {
+		fmt.Println(err)
+	}
+
+	boardContent += fmt.Sprintf("\n<@!%s>'s **%s** minesweeper game", game.UserID, strings.ToUpper(game.Difficulty))
 	// Send a message to the channel with the game result and time information.
-	_, err := s.ChannelMessageSendComplex(game.ChannelID, &discordgo.MessageSend{
+	if _, err := s.ChannelMessageSendComplex(game.ChannelID, &discordgo.MessageSend{
 		Content: fmt.Sprintf("%s%s", content, timeString),
+		Embeds:  embeds,
 		Reference: &discordgo.MessageReference{
 			MessageID: game.BoardID,
 			ChannelID: game.ChannelID,
 			GuildID:   game.GuildID,
 		},
-	})
-	if err != nil {
+	}); err != nil {
 		fmt.Println(err)
 	}
 

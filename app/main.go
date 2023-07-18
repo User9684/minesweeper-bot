@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
+	"net/http"
 	"os"
 	"os/signal"
 	"regexp"
@@ -20,17 +22,18 @@ import (
 )
 
 type MinesweeperGame struct {
-	GuildID     string
-	ChannelID   string
-	BoardID     string
-	FlagID      string
-	UserID      string
-	Difficulty  string
-	FlagEnabled bool
-	Won         bool
-	StartTime   time.Time
-	Game        *minesweeper.Game
-	EndGameChan *chan struct{}
+	GuildID      string
+	ChannelID    string
+	BoardID      string
+	FlagID       string
+	UserID       string
+	Difficulty   string
+	FlagEnabled  bool
+	Won          bool
+	StartTime    time.Time
+	Achievements map[int]Achievement
+	Game         *minesweeper.Game
+	EndGameChan  *chan struct{}
 }
 
 var s *discordgo.Session
@@ -43,10 +46,12 @@ var MessageLinkRegex = regexp.MustCompile(`(?:http(?:s)?://)(?:(?:canary|ptb).)?
 var UserStatsFormatString = "**Wins:** %d\n**Losses:** %d\n**Personal Best:** %s\n**Personal Worst:** %s"
 var Admins = make(map[string]bool)
 var EndAfter int64
+var TGGStatsURI string
 
 func BotInit() {
+	var token = os.Getenv("TOKEN")
 	// Create bot client.
-	session, err := discordgo.New(os.Getenv("TOKEN"))
+	session, err := discordgo.New(token)
 	if err != nil {
 		fmt.Println("error creating Discord session,", err)
 		return
@@ -61,6 +66,9 @@ func BotInit() {
 	session.State.TrackMembers = true
 
 	s = session
+
+	botID := strings.Split(token, ".")[0]
+	TGGStatsURI = fmt.Sprintf("https://top.gg/api/bots/%s/stats", botID)
 
 	RegisterEvents()
 }
@@ -103,6 +111,11 @@ func main() {
 	fmt.Println("Starting leaderboard edit ticker...")
 	startAutoEdit()
 
+	if auth := os.Getenv("TOPGG_BOT_TOKEN"); auth != "" {
+		fmt.Println("Starting top.gg auto stats uploader...")
+		startTGGUpdater(auth)
+	}
+
 	// Waits for SIGTERM.
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
@@ -117,6 +130,42 @@ func isInArray(value string, array []string) bool {
 	}
 
 	return false
+}
+
+func randomEmbedColor() int {
+	r := rand.Intn(255)
+	g := rand.Intn(255)
+	b := rand.Intn(255)
+	return (r << 16) + (g << 8) + b
+}
+
+var tggChannel chan struct{}
+
+func startTGGUpdater(auth string) {
+	ticker := time.NewTicker(5 * time.Minute)
+	tggChannel = make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				data := fmt.Sprintf("{\"server_count\":%d}", len(s.State.Guilds))
+				request, err := http.NewRequest(http.MethodPost, TGGStatsURI, strings.NewReader(data))
+				if err != nil {
+					fmt.Println(err)
+					break
+				}
+				request.Header.Set("Authorization", auth)
+
+				_, err = http.DefaultClient.Do(request)
+				if err != nil {
+					fmt.Println(err)
+				}
+			case <-tggChannel:
+				ticker.Stop()
+				return
+			}
+		}
+	}()
 }
 
 func handlePanic(err interface{}) {

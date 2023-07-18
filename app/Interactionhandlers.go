@@ -787,10 +787,17 @@ func HandleBoard(s *discordgo.Session, i *discordgo.InteractionCreate, positionx
 	// Find the spot on the game board based on the provided coordinates
 	spot := game.Game.FindSpot(positionx, positiony)
 
+	for id, achievement := range AwardAchievements(game, minesweeper.Nothing, spot, false, true) {
+		game.Achievements[id] = achievement
+	}
+
 	// Perform the appropriate action based on the FlagEnabled flag
 	switch game.FlagEnabled {
 	case true:
-		var event int
+		var (
+			event int
+			chord bool
+		)
 		if spot.DisplayedType == minesweeper.Normal {
 			event = game.Game.ChordSpot(spot)
 		}
@@ -800,6 +807,9 @@ func HandleBoard(s *discordgo.Session, i *discordgo.InteractionCreate, positionx
 			go s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseDeferredMessageUpdate,
 			})
+			for id, achievement := range AwardAchievements(game, event, spot, chord, false) {
+				game.Achievements[id] = achievement
+			}
 			return
 		}
 		if spot.DisplayedType == minesweeper.StartHere {
@@ -811,12 +821,17 @@ func HandleBoard(s *discordgo.Session, i *discordgo.InteractionCreate, positionx
 	case false:
 		var (
 			gameEnd bool
+			chord   bool
 			event   int
 		)
 		if spot.DisplayedType == minesweeper.Normal {
 			event = game.Game.ChordSpot(spot)
+			chord = true
 		}
 		if event != minesweeper.Nothing {
+			for id, achievement := range AwardAchievements(game, event, spot, chord, false) {
+				game.Achievements[id] = achievement
+			}
 			// Handle the game end and respond with a deferred message update
 			HandleGameEnd(s, game, event, true)
 			go s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -826,6 +841,9 @@ func HandleBoard(s *discordgo.Session, i *discordgo.InteractionCreate, positionx
 		}
 		// Visit the spot and check if the game ends
 		gameEnd, event = game.Game.VisitSpot(spot)
+		for id, achievement := range AwardAchievements(game, event, spot, chord, false) {
+			game.Achievements[id] = achievement
+		}
 		if gameEnd {
 			// Handle the game end and respond with a deferred message update
 			HandleGameEnd(s, game, event, true)

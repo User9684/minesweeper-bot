@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"main/humanizetime"
 	"main/minesweeper"
-	"math/rand"
 	"sort"
 	"strings"
 	"time"
@@ -154,16 +153,11 @@ func generateLeaderboardEmbed(guildID, guildName, difficultyString string) (disc
 
 	leaderboard := getLeaderboard(guildID, difficulty)
 
-	r := rand.Intn(255)
-	g := rand.Intn(255)
-	b := rand.Intn(255)
-	colorInt := (r << 16) + (g << 8) + b
-
 	embed := discordgo.MessageEmbed{
 		Type:        discordgo.EmbedTypeRich,
 		Title:       fmt.Sprintf("%s Leaderboard", guildName),
 		Description: fmt.Sprintf("Leaderboard for **%s** mode", strings.ToUpper(difficultyString)),
-		Color:       colorInt,
+		Color:       randomEmbedColor(),
 	}
 
 	for _, entry := range leaderboard {
