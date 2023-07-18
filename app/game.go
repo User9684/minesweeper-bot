@@ -14,23 +14,24 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func StartGame(s *discordgo.Session, i *discordgo.InteractionCreate, Game *minesweeper.Game, Difficulty, userID string) {
-	// Create a new MinesweeperGame object to store game information.
+// StartGame starts a new Minesweeper game for the user.
+func StartGame(s *discordgo.Session, i *discordgo.InteractionCreate, game *minesweeper.Game, difficulty, userID string) {
 	newGame := MinesweeperGame{
 		UserID:       userID,
 		GuildID:      i.GuildID,
 		ChannelID:    i.ChannelID,
-		Game:         Game,
-		Difficulty:   Difficulty,
+		Game:         game,
+		Difficulty:   difficulty,
 		Achievements: make(map[int]Achievement),
 	}
 
-	// Send the initial message with the game board.
 	content := "Click the <:clickme:1119511692825604096> to start the game!"
-	if !Game.HasStartPosition {
+	if !game.HasStartPosition {
 		content = "Click anywhere to start the game!"
 	}
-	board := GenerateBoard(&newGame, Game.HasStartPosition, false)
+
+	// Send the initial message with the game board.
+	board := GenerateBoard(&newGame, game.HasStartPosition, false)
 	msg, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 		Content:    &content,
 		Components: &board,
@@ -94,7 +95,7 @@ func StartGame(s *discordgo.Session, i *discordgo.InteractionCreate, Game *mines
 	Games[userID] = &newGame
 }
 
-// Handles the end of the game and sends the appropriate message.
+// HandleGameEnd handles the end of the game and sends the appropriate message.
 func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int, addToBoard bool) {
 	defer func() {
 		if err := recover(); err != nil {
@@ -102,18 +103,13 @@ func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int, addTo
 		}
 	}()
 	close(*game.EndGameChan)
+
 	// Calculate the time taken in the game and format it as a human-readable string.
 	gameDuration := time.Since(game.StartTime)
-	timeString := fmt.Sprintf(
-		"\nYour time was %s",
-		humanizetime.HumanizeDuration(gameDuration, 3),
-	)
-
+	timeString := fmt.Sprintf("\nYour time was %s", humanizetime.HumanizeDuration(gameDuration, 3))
 	if game.StartTime.IsZero() {
 		timeString = "\nyou never even started the game.."
 	}
-
-	boardContent := ""
 
 	// Determine the content string based on the event that caused the game to end.
 	content := fmt.Sprintf("<@!%s> ", game.UserID)
@@ -125,6 +121,7 @@ func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int, addTo
 		userData.Achivements = make(map[int]bool)
 	}
 
+	boardContent := ""
 	switch event {
 	case minesweeper.ManualEnd:
 		content += getRandomMessage(SarcasticGiveUpMessages)
@@ -141,9 +138,7 @@ func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int, addTo
 		}
 
 		dd := userData.Difficulties[game.Difficulty]
-
 		dd.Losses++
-
 		userData.Difficulties[game.Difficulty] = dd
 	case minesweeper.Won:
 		boardContent = "Wow, you managed to win!"
@@ -173,7 +168,6 @@ func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int, addTo
 		addToLeaderboard("global", game.Game.Difficulty, entry)
 
 		dd := userData.Difficulties[game.Difficulty]
-
 		dd.Wins++
 		if dd.PB > gameDuration.Seconds() || dd.PB == 0 {
 			dd.PB = gameDuration.Seconds()
@@ -187,31 +181,28 @@ func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int, addTo
 		}
 		userData.Difficulties[game.Difficulty] = dd
 	}
+
 	var embeds []*discordgo.MessageEmbed
 
+	// Check for unlocked achievements and update the user data.
 	if len(game.Achievements) > 0 {
 		newEmbed := &discordgo.MessageEmbed{}
 		newEmbed.Color = randomEmbedColor()
 		newEmbed.Title = "Achievements Unlocked"
 		newEmbed.Timestamp = time.Now().Format(time.RFC3339)
 
-		for ID, achivement := range game.Achievements {
-			// I really hate nesting if statements, but I have no clue how else I would do this.
+		for ID, achievement := range game.Achievements {
 			if userData.Achivements[ID] {
 				continue
 			}
 			userData.Achivements[ID] = true
-			newEmbed.Description += fmt.Sprintf("**%s:** %s\n", achivement.Name, achivement.Description)
+			newEmbed.Description += fmt.Sprintf("**%s:** %s\n", achievement.Name, achievement.Description)
 		}
 		embeds = append(embeds, newEmbed)
 	}
 
-	// Update userdata record in database.
-	filter := bson.D{{
-		Key:   "userID",
-		Value: game.UserID,
-	}}
-
+	// Update userdata record in the database.
+	filter := bson.D{{Key: "userID", Value: game.UserID}}
 	data, err := bson.Marshal(userData)
 	if err != nil {
 		fmt.Println(err)
@@ -226,10 +217,7 @@ func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int, addTo
 	request := d.Collection("userdata").FindOneAndUpdate(
 		context.TODO(),
 		filter,
-		bson.D{{
-			Key:   "$set",
-			Value: update,
-		}},
+		bson.D{{Key: "$set", Value: update}},
 		options.FindOneAndUpdate().SetUpsert(true),
 	)
 
@@ -238,6 +226,7 @@ func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int, addTo
 	}
 
 	boardContent += fmt.Sprintf("\n<@!%s>'s **%s** minesweeper game", game.UserID, strings.ToUpper(game.Difficulty))
+
 	// Send a message to the channel with the game result and time information.
 	if _, err := s.ChannelMessageSendComplex(game.ChannelID, &discordgo.MessageSend{
 		Content: fmt.Sprintf("%s%s", content, timeString),
@@ -266,7 +255,7 @@ func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int, addTo
 	delete(Games, game.UserID)
 }
 
-// Generates the message components for the game board.
+// GenerateBoard generates the message components for the game board.
 func GenerateBoard(game *MinesweeperGame, firstGen, useSpotTypes bool) []discordgo.MessageComponent {
 	defer func() {
 		if err := recover(); err != nil {
