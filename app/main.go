@@ -132,6 +132,16 @@ func isInArray(value string, array []string) bool {
 	return false
 }
 
+func isInIntArray(value int, array []int) bool {
+	for _, v := range array {
+		if value == v {
+			return true
+		}
+	}
+
+	return false
+}
+
 func randomEmbedColor() int {
 	r := rand.Intn(255)
 	g := rand.Intn(255)

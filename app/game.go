@@ -118,7 +118,7 @@ func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int, addTo
 		userData.Difficulties = make(map[string]DifficultyData)
 	}
 	if userData.Achievements == nil {
-		userData.Achievements = make(map[int]bool)
+		userData.Achievements = make([]int, 0)
 	}
 
 	boardContent := ""
@@ -192,10 +192,9 @@ func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int, addTo
 		newEmbed.Timestamp = time.Now().Format(time.RFC3339)
 
 		for ID, achievement := range game.Achievements {
-			if userData.Achievements[ID] {
-				continue
+			if isInIntArray(ID, userData.Achievements) {
+				userData.Achievements = append(userData.Achievements, ID)
 			}
-			userData.Achievements[ID] = true
 			newEmbed.Description += fmt.Sprintf("**%s:** %s\n", achievement.Name, achievement.Description)
 		}
 		embeds = append(embeds, newEmbed)

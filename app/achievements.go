@@ -1,7 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"main/minesweeper"
+	"math"
+
+	"github.com/bwmarrin/discordgo"
 )
 
 type CheckData struct {
@@ -37,7 +41,7 @@ var Achievements = map[int]Achievement{
 	// Failed to chord.
 	2: {
 		Name:        "Out Of Tune",
-		Description: "You tried to chord, but you were out of tune.",
+		Description: "Tried to chord, but you were out of tune.",
 		CheckFunc: func(data CheckData) bool {
 			if !data.Chorded {
 				return false
@@ -72,7 +76,7 @@ var Achievements = map[int]Achievement{
 			return true
 		},
 	},
-	69: {
+	5: {
 		Name:        "⬧︎♓︎●︎●︎⍓︎ ♍︎♋︎⧫︎ ⬧︎♋︎⍓︎⬧︎ ♒︎♓︎✏︎",
 		Description: "🖳︎🗏︎",
 		CheckFunc: func(data CheckData) bool {
@@ -98,4 +102,60 @@ func AwardAchievements(game *MinesweeperGame, event int, clickedCell *minesweepe
 	}
 
 	return achievementsGotten
+}
+
+func getFieldsAndComponents(userData UserData, page int) ([]*discordgo.MessageEmbedField, []discordgo.MessageComponent) {
+	var components []discordgo.MessageComponent
+	var fields []*discordgo.MessageEmbedField
+
+	pages := math.Ceil(float64(len(userData.Achievements)) / float64(5))
+
+	components = append(components, discordgo.ActionsRow{
+		Components: []discordgo.MessageComponent{
+			discordgo.Button{
+				CustomID: "profileleft",
+				Label:    "←",
+				Style:    discordgo.PrimaryButton,
+				Disabled: page <= 0,
+			},
+			discordgo.Button{
+				CustomID: "profileright",
+				Label:    "→",
+				Style:    discordgo.PrimaryButton,
+				Disabled: float64(page+1) >= pages,
+			},
+		},
+	})
+
+	paginated := paginate(userData.Achievements, page, 5)
+	fmt.Println(paginated)
+	for _, ID := range paginated {
+		achievement := Achievements[ID]
+		fields = append(fields, &discordgo.MessageEmbedField{
+			Name:  achievement.Name,
+			Value: achievement.Description,
+		})
+	}
+
+	if len(userData.Achievements) <= 0 {
+		fields = append(fields, &discordgo.MessageEmbedField{
+			Name: "No unlocked achievements",
+		})
+	}
+
+	return fields, components
+}
+
+func paginate(numbers []int, page, itemsPerPage int) []int {
+	pages := math.Ceil(float64(len(numbers)) / float64(itemsPerPage))
+	if float64(page) >= pages {
+		return []int{}
+	}
+
+	startIndex := page * itemsPerPage
+	endIndex := int(math.Min(float64(startIndex+itemsPerPage), float64(len(numbers))))
+
+	paginatedList := numbers[startIndex:endIndex]
+
+	return paginatedList
 }

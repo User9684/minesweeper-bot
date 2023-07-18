@@ -48,7 +48,7 @@ type GuildData struct {
 type UserData struct {
 	UserID       string                    `bson:"userID"`
 	Difficulties map[string]DifficultyData `bson:"difficulties"`
-	Achievements map[int]bool              `bson:"achievements"`
+	Achievements []int                     `bson:"achievements"`
 }
 type Blacklist struct {
 	UserID  string `bson:"userID"`

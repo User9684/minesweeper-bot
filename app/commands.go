@@ -103,6 +103,12 @@ var Commands = []*discordgo.ApplicationCommand{
 				Description: "User to get the profile of",
 				Required:    false,
 			},
+			{
+				Type:        discordgo.ApplicationCommandOptionBoolean,
+				Name:        "achievements",
+				Description: "View the achievements of a user",
+				Required:    false,
+			},
 		},
 	},
 	{
