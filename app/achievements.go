@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"main/minesweeper"
 	"math"
 
@@ -128,7 +127,6 @@ func getFieldsAndComponents(userData UserData, page int) ([]*discordgo.MessageEm
 	})
 
 	paginated := paginate(userData.Achievements, page, 5)
-	fmt.Println(paginated)
 	for _, ID := range paginated {
 		achievement := Achievements[ID]
 		fields = append(fields, &discordgo.MessageEmbedField{

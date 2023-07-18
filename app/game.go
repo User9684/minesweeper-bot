@@ -184,8 +184,9 @@ func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int, addTo
 
 	var embeds []*discordgo.MessageEmbed
 
+	newAchievements := len(game.Achievements)
 	// Check for unlocked achievements and update the user data.
-	if len(game.Achievements) > 0 {
+	if newAchievements > 0 {
 		newEmbed := &discordgo.MessageEmbed{}
 		newEmbed.Color = randomEmbedColor()
 		newEmbed.Title = "Achievements Unlocked"
@@ -193,11 +194,17 @@ func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int, addTo
 
 		for ID, achievement := range game.Achievements {
 			if isInIntArray(ID, userData.Achievements) {
-				userData.Achievements = append(userData.Achievements, ID)
+				newAchievements--
+				continue
 			}
+			userData.Achievements = append(userData.Achievements, ID)
 			newEmbed.Description += fmt.Sprintf("**%s:** %s\n", achievement.Name, achievement.Description)
 		}
 		embeds = append(embeds, newEmbed)
+	}
+
+	if newAchievements <= 0 {
+		embeds = make([]*discordgo.MessageEmbed, 0)
 	}
 
 	// Update userdata record in the database.

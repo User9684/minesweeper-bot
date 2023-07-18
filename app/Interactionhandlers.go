@@ -451,10 +451,70 @@ var ComponentHandlers = map[string]func(s *discordgo.Session, i *discordgo.Inter
 				handlePanic(err)
 			}
 		}()
+		userID, _ := getUserID(i)
 		// Respond to the interaction with a deferred message update.
 		go s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseDeferredMessageUpdate,
 		})
+		embed := i.Message.Embeds[0]
+
+		ids := strings.Split(embed.Footer.Text, " - ")
+		caller := ids[0]
+		target := ids[1]
+
+		var userString string
+		var userImage string
+		user, err := getUser(target, false)
+		if err != nil {
+			fmt.Println(err)
+			userString = target
+			userImage = "https://cdn.discordapp.com/embed/avatars/0.png"
+		}
+		if err == nil {
+			userString = user.Username
+			userImage = user.AvatarURL("")
+		}
+
+		page, err := strconv.Atoi(embed.Description[6:])
+		if err != nil {
+			cmdError(s, i, err)
+			return
+		}
+
+		page--
+
+		if userID != caller {
+			return
+		}
+
+		userData := getUserData(target)
+
+		title := fmt.Sprintf("%s's Achievements", userString)
+		fields, components := getFieldsAndComponents(userData, page)
+		desc := fmt.Sprintf("Page #%d", page+1)
+
+		newEmbed := discordgo.MessageEmbed{
+			Type:        discordgo.EmbedTypeRich,
+			Title:       title,
+			Description: desc,
+			Color:       randomEmbedColor(),
+			Fields:      fields,
+			Footer: &discordgo.MessageEmbedFooter{
+				Text: fmt.Sprintf("%s - %s", caller, target),
+			},
+			Thumbnail: &discordgo.MessageEmbedThumbnail{
+				URL: userImage,
+			},
+		}
+
+		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+			Embeds: &[]*discordgo.MessageEmbed{
+				&newEmbed,
+			},
+			Components: &components,
+		}); err != nil {
+			fmt.Println(err)
+		}
 	},
 	"profileright": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		defer func() {
