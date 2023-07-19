@@ -9,6 +9,7 @@ import (
 
 type CheckData struct {
 	Event       int
+	Game        *MinesweeperGame
 	ClickedCell *minesweeper.Spot
 	Chorded     bool
 	PreVisit    bool
@@ -109,6 +110,30 @@ var Achievements = map[int]Achievement{
 			return false
 		},
 	},
+	7: {
+		Name:        "Not so nice.",
+		Description: "Lose 69 times on any difficulty",
+		CheckFunc: func(data CheckData) bool {
+			userData := getUserData(data.Game.UserID)
+			return userData.Difficulties[data.Game.Difficulty].Losses >= 69
+		},
+	},
+	8: {
+		Name:        "Nice.",
+		Description: "Win 69 times on any difficulty",
+		CheckFunc: func(data CheckData) bool {
+			userData := getUserData(data.Game.UserID)
+			return userData.Difficulties[data.Game.Difficulty].Wins >= 69
+		},
+	},
+	9: {
+		Name:        "That's real nice!",
+		Description: "Get a 69 win streak on any difficulty",
+		CheckFunc: func(data CheckData) bool {
+			userData := getUserData(data.Game.UserID)
+			return userData.Difficulties[data.Game.Difficulty].WinStreak >= 69
+		},
+	},
 }
 
 func AwardAchievements(game *MinesweeperGame, event int, clickedCell *minesweeper.Spot, chord, beforeVisit bool) map[int]Achievement {
@@ -116,6 +141,7 @@ func AwardAchievements(game *MinesweeperGame, event int, clickedCell *minesweepe
 
 	data := CheckData{
 		Event:       event,
+		Game:        game,
 		ClickedCell: clickedCell,
 		Chorded:     chord,
 		PreVisit:    beforeVisit,

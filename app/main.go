@@ -43,7 +43,7 @@ var Games = make(map[string]*MinesweeperGame)
 var ChannelMutex = make(map[string]*sync.Mutex)
 var BoardPositionRegex = regexp.MustCompile(`boardx(\d+)y(\d+)`)
 var MessageLinkRegex = regexp.MustCompile(`(?:http(?:s)?://)(?:(?:canary|ptb).)?discord.com/channels/(\d+|@me)/(\d+)/(\d+)`)
-var UserStatsFormatString = "**Wins:** %d\n**Losses:** %d\n**Personal Best:** %s\n**Personal Worst:** %s"
+var UserStatsFormatString = "**Wins:** %d\n**Losses:** %d\n**Winstreak:** %d\n**Personal Best:** %s\n**Personal Worst:** %s"
 var Admins = make(map[string]bool)
 var EndAfter int64
 var TGGStatsURI string

@@ -139,6 +139,10 @@ func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int, addTo
 
 		dd := userData.Difficulties[game.Difficulty]
 		dd.Losses++
+		if dd.WinStreak > 0 {
+			boardContent += fmt.Sprintf("\nLost a winstreak of **%d**\n", dd.WinStreak)
+		}
+		dd.WinStreak = 0
 		userData.Difficulties[game.Difficulty] = dd
 	case minesweeper.Won:
 		boardContent = "Wow, you managed to win!"
@@ -169,6 +173,8 @@ func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int, addTo
 
 		dd := userData.Difficulties[game.Difficulty]
 		dd.Wins++
+		dd.WinStreak++
+		boardContent += fmt.Sprintf("\nNew winstreak: **%d**", dd.WinStreak)
 		if dd.PB > gameDuration.Seconds() || dd.PB == 0 {
 			dd.PB = gameDuration.Seconds()
 		}

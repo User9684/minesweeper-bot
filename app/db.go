@@ -29,10 +29,11 @@ type PresenceData struct {
 }
 
 type DifficultyData struct {
-	Wins   int64   `bson:"wins"`
-	Losses int64   `bson:"losses"`
-	PB     float64 `bson:"PB"`
-	PW     float64 `bson:"PW"`
+	Wins      int64   `bson:"wins"`
+	Losses    int64   `bson:"losses"`
+	WinStreak int64   `bson:"streak"`
+	PB        float64 `bson:"PB"`
+	PW        float64 `bson:"PW"`
 }
 
 type DifficultiesMap struct {

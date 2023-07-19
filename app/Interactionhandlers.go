@@ -289,6 +289,7 @@ var CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interac
 				fieldValue := fmt.Sprintf(UserStatsFormatString,
 					userData.Difficulties[difficulty].Wins,
 					userData.Difficulties[difficulty].Losses,
+					userData.Difficulties[difficulty].WinStreak,
 					difficultyData.PB,
 					difficultyData.PW)
 
