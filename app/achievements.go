@@ -135,6 +135,32 @@ var Achievements = map[int]Achievement{
 			return userData.Difficulties[data.Game.Difficulty].WinStreak >= 69
 		},
 	},
+	10: {
+		Name:        "Flagged by the CIA",
+		Description: "Flag a cell as a bomb correctly",
+		CheckFunc: func(data CheckData) bool {
+			if !data.Flagged {
+				return false
+			}
+			if data.ClickedCell.Type != minesweeper.Bomb {
+				return false
+			}
+			return true
+		},
+	},
+	11: {
+		Name:        "Nuh uh!",
+		Description: "Flag a cell as a bomb incorrectly",
+		CheckFunc: func(data CheckData) bool {
+			if !data.Flagged {
+				return false
+			}
+			if data.ClickedCell.Type == minesweeper.Bomb {
+				return false
+			}
+			return true
+		},
+	},
 }
 
 func AwardAchievements(game *MinesweeperGame, event int, clickedCell *minesweeper.Spot, chord, flagged, beforeVisit bool) map[int]Achievement {
