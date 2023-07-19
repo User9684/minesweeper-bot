@@ -482,7 +482,7 @@ var ComponentHandlers = map[string]func(s *discordgo.Session, i *discordgo.Inter
 			return
 		}
 
-		page--
+		page -= 2
 
 		if userID != caller {
 			return
