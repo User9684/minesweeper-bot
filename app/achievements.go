@@ -11,6 +11,7 @@ type CheckData struct {
 	Event       int
 	Game        *MinesweeperGame
 	ClickedCell *minesweeper.Spot
+	Flagged     bool
 	Chorded     bool
 	PreVisit    bool
 }
@@ -88,7 +89,7 @@ var Achievements = map[int]Achievement{
 		Name:        "Can't Count",
 		Description: "How did you manage this?",
 		CheckFunc: func(data CheckData) bool {
-			if data.Event != minesweeper.Nothing {
+			if data.Event != minesweeper.Lost {
 				return false
 			}
 			if data.ClickedCell.Type != minesweeper.Bomb {
@@ -136,13 +137,14 @@ var Achievements = map[int]Achievement{
 	},
 }
 
-func AwardAchievements(game *MinesweeperGame, event int, clickedCell *minesweeper.Spot, chord, beforeVisit bool) map[int]Achievement {
+func AwardAchievements(game *MinesweeperGame, event int, clickedCell *minesweeper.Spot, chord, flagged, beforeVisit bool) map[int]Achievement {
 	var achievementsGotten = make(map[int]Achievement)
 
 	data := CheckData{
 		Event:       event,
 		Game:        game,
 		ClickedCell: clickedCell,
+		Flagged:     flagged,
 		Chorded:     chord,
 		PreVisit:    beforeVisit,
 	}

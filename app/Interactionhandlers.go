@@ -631,7 +631,7 @@ func HandleBoard(s *discordgo.Session, i *discordgo.InteractionCreate, positionx
 	// Find the spot on the game board based on the provided coordinates
 	spot := game.Game.FindSpot(positionx, positiony)
 
-	for id, achievement := range AwardAchievements(game, minesweeper.Nothing, spot, false, true) {
+	for id, achievement := range AwardAchievements(game, minesweeper.Nothing, spot, false, false, true) {
 		game.Achievements[id] = achievement
 	}
 
@@ -651,7 +651,7 @@ func HandleBoard(s *discordgo.Session, i *discordgo.InteractionCreate, positionx
 			go s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseDeferredMessageUpdate,
 			})
-			for id, achievement := range AwardAchievements(game, event, spot, chord, false) {
+			for id, achievement := range AwardAchievements(game, event, spot, chord, false, false) {
 				game.Achievements[id] = achievement
 			}
 			return
@@ -661,6 +661,9 @@ func HandleBoard(s *discordgo.Session, i *discordgo.InteractionCreate, positionx
 			break
 		}
 		game.Game.FlagSpot(spot)
+		for id, achievement := range AwardAchievements(game, event, spot, chord, true, false) {
+			game.Achievements[id] = achievement
+		}
 
 	case false:
 		var (
@@ -673,7 +676,7 @@ func HandleBoard(s *discordgo.Session, i *discordgo.InteractionCreate, positionx
 			chord = true
 		}
 		if event != minesweeper.Nothing {
-			for id, achievement := range AwardAchievements(game, event, spot, chord, false) {
+			for id, achievement := range AwardAchievements(game, event, spot, chord, false, false) {
 				game.Achievements[id] = achievement
 			}
 			// Handle the game end and respond with a deferred message update
@@ -685,7 +688,7 @@ func HandleBoard(s *discordgo.Session, i *discordgo.InteractionCreate, positionx
 		}
 		// Visit the spot and check if the game ends
 		gameEnd, event = game.Game.VisitSpot(spot)
-		for id, achievement := range AwardAchievements(game, event, spot, chord, false) {
+		for id, achievement := range AwardAchievements(game, event, spot, chord, false, false) {
 			game.Achievements[id] = achievement
 		}
 		if gameEnd {
