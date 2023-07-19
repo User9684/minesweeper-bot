@@ -82,6 +82,33 @@ var Achievements = map[int]Achievement{
 			return false
 		},
 	},
+	// Clicked on a bomb that was obviously a bomb. i.e. 01x 011 000.
+	6: {
+		Name:        "Can't Count",
+		Description: "How did you manage this?",
+		CheckFunc: func(data CheckData) bool {
+			if data.Event != minesweeper.Nothing {
+				return false
+			}
+			if data.ClickedCell.Type != minesweeper.Bomb {
+				return false
+			}
+
+			for _, spot := range data.ClickedCell.SurroundingSpots {
+				totalHidden := 0
+				for _, surroundingSpot := range spot.SurroundingSpots {
+					if surroundingSpot.DisplayedType == minesweeper.Hidden {
+						totalHidden++
+					}
+				}
+				if totalHidden == spot.NearbyBombs {
+					return true
+				}
+			}
+
+			return false
+		},
+	},
 }
 
 func AwardAchievements(game *MinesweeperGame, event int, clickedCell *minesweeper.Spot, chord, beforeVisit bool) map[int]Achievement {
