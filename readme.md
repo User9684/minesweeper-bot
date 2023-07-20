@@ -6,6 +6,7 @@ Giving credit where credit is due, this bot was pretty much entirely ripped off 
 - Custom Minesweeper game command
 - Server-Specific leaderboard
 - Global leaderboard
+- Achievements
 
 # Admin Commands
 - Blacklist / Unblacklist user

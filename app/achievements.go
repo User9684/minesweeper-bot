@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"main/minesweeper"
 	"math"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -66,6 +68,9 @@ var Achievements = map[int]Achievement{
 		Name:        "YOLO",
 		Description: "Clicked a cell without any surrounding visited cells",
 		CheckFunc: func(data CheckData) bool {
+			if data.ClickedCell == nil {
+				return false
+			}
 			if data.ClickedCell.DisplayedType == minesweeper.StartHere {
 				return false
 			}
@@ -77,11 +82,34 @@ var Achievements = map[int]Achievement{
 			return true
 		},
 	},
+	// The hardest achievement in the game, for now.
 	5: {
 		Name:        "⬧︎♓︎●︎●︎⍓︎ ♍︎♋︎⧫︎ ⬧︎♋︎⍓︎⬧︎ ♒︎♓︎✏︎",
 		Description: "🖳︎🗏︎",
 		CheckFunc: func(data CheckData) bool {
-			return false
+			userData := getUserData(data.Game.UserID)
+
+			if userData.Difficulties[data.Game.Difficulty].WinStreak < 69 {
+				return false
+			}
+
+			if data.Game.Flags&HasNormalClicked != 0 {
+				return false
+			}
+
+			if data.Game.Flags&HasUsedFlag == 0 {
+				return false
+			}
+
+			if data.Game.Flags&HasChorded == 0 {
+				return false
+			}
+
+			if time.Since(data.Game.StartTime).Seconds() > 20 {
+				return false
+			}
+
+			return true
 		},
 	},
 	// Clicked on a bomb that was obviously a bomb. i.e. 01x 011 000.
@@ -89,6 +117,9 @@ var Achievements = map[int]Achievement{
 		Name:        "Can't Count",
 		Description: "How did you manage this?",
 		CheckFunc: func(data CheckData) bool {
+			if data.ClickedCell == nil {
+				return false
+			}
 			if data.Event != minesweeper.Lost {
 				return false
 			}
@@ -139,6 +170,9 @@ var Achievements = map[int]Achievement{
 		Name:        "Flagged by the CIA",
 		Description: "Flag a cell as a bomb correctly",
 		CheckFunc: func(data CheckData) bool {
+			if data.ClickedCell == nil {
+				return false
+			}
 			if !data.Flagged {
 				return false
 			}
@@ -152,6 +186,9 @@ var Achievements = map[int]Achievement{
 		Name:        "Nuh uh!",
 		Description: "Flag a cell as a bomb incorrectly",
 		CheckFunc: func(data CheckData) bool {
+			if data.ClickedCell == nil {
+				return false
+			}
 			if !data.Flagged {
 				return false
 			}
@@ -161,10 +198,46 @@ var Achievements = map[int]Achievement{
 			return true
 		},
 	},
+	12: {
+		Name:        "Stale bread",
+		Description: "Let the game time out",
+		CheckFunc: func(data CheckData) bool {
+			return data.Event == minesweeper.TimedEnd
+		},
+	},
+	13: {
+		Name:        "How lucky!",
+		Description: "Beat the game in a single click",
+		CheckFunc: func(data CheckData) bool {
+			if data.Event != minesweeper.Won {
+				return false
+			}
+			gameDuration := time.Since(data.Game.StartTime)
+			fmt.Println(gameDuration.Seconds())
+			return gameDuration.Seconds() <= 0.2
+		},
+	},
+	14: {
+		Name:        "Purity",
+		Description: "Complete the game with nothing but chording",
+		CheckFunc: func(data CheckData) bool {
+			if data.Game.Flags&HasNormalClicked != 0 {
+				return false
+			}
+			if data.Game.Flags&HasChorded == 0 {
+				return false
+			}
+			return true
+		},
+	},
 }
 
 func AwardAchievements(game *MinesweeperGame, event int, clickedCell *minesweeper.Spot, chord, flagged, beforeVisit bool) map[int]Achievement {
 	var achievementsGotten = make(map[int]Achievement)
+
+	if game.Difficulty == "custom" {
+		return achievementsGotten
+	}
 
 	data := CheckData{
 		Event:       event,

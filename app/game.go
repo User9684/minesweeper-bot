@@ -14,6 +14,16 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+// Game flags
+var (
+	Won              = int64(1 << 0)
+	Lost             = int64(1 << 1)
+	HasUsedFlag      = int64(1 << 2)
+	FlagEnabled      = int64(1 << 3)
+	HasChorded       = int64(1 << 4)
+	HasNormalClicked = int64(1 << 5)
+)
+
 // StartGame starts a new Minesweeper game for the user.
 func StartGame(s *discordgo.Session, i *discordgo.InteractionCreate, game *minesweeper.Game, difficulty, userID string) {
 	newGame := MinesweeperGame{
@@ -81,6 +91,9 @@ func StartGame(s *discordgo.Session, i *discordgo.InteractionCreate, game *mines
 			for {
 				select {
 				case <-timer.C:
+					for id, achievement := range AwardAchievements(&newGame, minesweeper.TimedEnd, nil, false, false, true) {
+						newGame.Achievements[id] = achievement
+					}
 					HandleGameEnd(s, &newGame, minesweeper.TimedEnd, false)
 					return
 				case <-channel:
@@ -126,9 +139,23 @@ func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int, addTo
 	case minesweeper.ManualEnd:
 		content += getRandomMessage(SarcasticGiveUpMessages)
 		boardContent = "LOL, giving up already?"
+
+		dd := userData.Difficulties[game.Difficulty]
+		if dd.WinStreak > 0 {
+			boardContent += fmt.Sprintf("\nLost a winstreak of **%d**\n", dd.WinStreak)
+		}
+		dd.WinStreak = 0
+		userData.Difficulties[game.Difficulty] = dd
 	case minesweeper.TimedEnd:
 		content += getRandomMessage(SarcasticTimeOverMessages)
 		boardContent = "Jesus christ, it does NOT take that long!"
+
+		dd := userData.Difficulties[game.Difficulty]
+		if dd.WinStreak > 0 {
+			boardContent += fmt.Sprintf("\nLost a winstreak of **%d**\n", dd.WinStreak)
+		}
+		dd.WinStreak = 0
+		userData.Difficulties[game.Difficulty] = dd
 	case minesweeper.Lost:
 		boardContent = "Game over. LOL."
 		content += getRandomMessage(SarcasticLostMessages)
@@ -146,7 +173,7 @@ func HandleGameEnd(s *discordgo.Session, game *MinesweeperGame, event int, addTo
 		userData.Difficulties[game.Difficulty] = dd
 	case minesweeper.Won:
 		boardContent = "Wow, you managed to win!"
-		game.Won = true
+		game.Flags |= Won
 
 		messages := getMessages(int64(gameDuration.Seconds()))
 		if gameDuration.Seconds() <= 0.2 {
@@ -298,7 +325,7 @@ func GenerateBoard(game *MinesweeperGame, firstGen, useSpotTypes bool) []discord
 				typeToUse = minesweeper.Flag
 			}
 
-			if game.Won && spot.Type == minesweeper.Bomb {
+			if game.Flags&Won != 0 && spot.Type == minesweeper.Bomb {
 				typeToUse = minesweeper.Flag
 			}
 

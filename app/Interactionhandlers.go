@@ -379,7 +379,7 @@ var ComponentHandlers = map[string]func(s *discordgo.Session, i *discordgo.Inter
 		})
 
 		// Toggle the flag status.
-		game.FlagEnabled = !game.FlagEnabled
+		game.Flags ^= FlagEnabled
 
 		// Create the new flag button.
 		flagRow := discordgo.ActionsRow{}
@@ -398,7 +398,7 @@ var ComponentHandlers = map[string]func(s *discordgo.Session, i *discordgo.Inter
 		}
 
 		// Update the label and style of the flag button based on the flag status.
-		if game.FlagEnabled {
+		if game.Flags&FlagEnabled != 0 {
 			flagButton.Label = "ON"
 			flagButton.Style = discordgo.SuccessButton
 		}
@@ -636,42 +636,15 @@ func HandleBoard(s *discordgo.Session, i *discordgo.InteractionCreate, positionx
 	}
 
 	// Perform the appropriate action based on the FlagEnabled flag
-	switch game.FlagEnabled {
-	case true:
-		var (
-			event int
-			chord bool
-		)
-		if spot.DisplayedType == minesweeper.Normal {
-			event = game.Game.ChordSpot(spot)
-		}
-		if event != minesweeper.Nothing {
-			// Handle the game end and respond with a deferred message update
-			HandleGameEnd(s, game, event, true)
-			go s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseDeferredMessageUpdate,
-			})
-			for id, achievement := range AwardAchievements(game, event, spot, chord, false, false) {
-				game.Achievements[id] = achievement
-			}
-			return
-		}
-		if spot.DisplayedType == minesweeper.StartHere {
-			game.Game.VisitSpot(spot)
-			break
-		}
-		game.Game.FlagSpot(spot)
-		for id, achievement := range AwardAchievements(game, event, spot, chord, true, false) {
-			game.Achievements[id] = achievement
-		}
-
-	case false:
+	switch game.Flags & FlagEnabled {
+	case 0:
 		var (
 			gameEnd bool
 			chord   bool
 			event   int
 		)
 		if spot.DisplayedType == minesweeper.Normal {
+			game.Flags |= HasChorded
 			event = game.Game.ChordSpot(spot)
 			chord = true
 		}
@@ -686,6 +659,13 @@ func HandleBoard(s *discordgo.Session, i *discordgo.InteractionCreate, positionx
 			})
 			return
 		}
+		// If chorded the spot, do nothing else.
+		if chord {
+			break
+		}
+		if spot.DisplayedType != minesweeper.StartHere {
+			game.Flags |= HasNormalClicked
+		}
 		// Visit the spot and check if the game ends
 		gameEnd, event = game.Game.VisitSpot(spot)
 		for id, achievement := range AwardAchievements(game, event, spot, chord, false, false) {
@@ -698,6 +678,40 @@ func HandleBoard(s *discordgo.Session, i *discordgo.InteractionCreate, positionx
 				Type: discordgo.InteractionResponseDeferredMessageUpdate,
 			})
 			return
+		}
+	default:
+		var (
+			event int
+			chord bool
+		)
+		if spot.DisplayedType == minesweeper.Normal {
+			game.Flags |= HasChorded
+			event = game.Game.ChordSpot(spot)
+			chord = true
+		}
+		if event != minesweeper.Nothing {
+			// Handle the game end and respond with a deferred message update
+			HandleGameEnd(s, game, event, true)
+			go s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseDeferredMessageUpdate,
+			})
+			for id, achievement := range AwardAchievements(game, event, spot, chord, false, false) {
+				game.Achievements[id] = achievement
+			}
+			return
+		}
+		// If chorded the spot, do nothing else.
+		if chord {
+			break
+		}
+		if spot.DisplayedType == minesweeper.StartHere {
+			game.Game.VisitSpot(spot)
+			break
+		}
+		game.Flags |= HasUsedFlag
+		game.Game.FlagSpot(spot)
+		for id, achievement := range AwardAchievements(game, event, spot, chord, true, false) {
+			game.Achievements[id] = achievement
 		}
 	}
 

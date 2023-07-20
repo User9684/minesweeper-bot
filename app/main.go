@@ -28,8 +28,7 @@ type MinesweeperGame struct {
 	FlagID       string
 	UserID       string
 	Difficulty   string
-	FlagEnabled  bool
-	Won          bool
+	Flags        int64
 	StartTime    time.Time
 	Achievements map[int]Achievement
 	Game         *minesweeper.Game
