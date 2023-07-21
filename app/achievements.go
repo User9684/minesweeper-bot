@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"main/minesweeper"
 	"math"
 	"time"
@@ -228,7 +227,6 @@ var Achievements = map[int]Achievement{
 				return false
 			}
 			gameDuration := time.Since(data.Game.StartTime)
-			fmt.Println(gameDuration.Seconds())
 			return gameDuration.Seconds() <= 0.2
 		},
 	},
@@ -245,12 +243,69 @@ var Achievements = map[int]Achievement{
 			return true
 		},
 	},
+
+	// Speed based achievements.
+	15: {
+		Name:        "Average.",
+		Description: "Not too fast, not too slow, but good job, I guess.",
+		CheckFunc: func(data CheckData) bool {
+			if data.Event != minesweeper.Won {
+				return false
+			}
+			gameDuration := time.Since(data.Game.StartTime)
+			return gameDuration.Seconds() <= 60
+		},
+	},
+	16: {
+		Name:        "Faster",
+		Description: "You're gettin there!",
+		CheckFunc: func(data CheckData) bool {
+			if data.Event != minesweeper.Won {
+				return false
+			}
+			gameDuration := time.Since(data.Game.StartTime)
+			return gameDuration.Seconds() <= 40
+		},
+	},
+	17: {
+		Name:        "Pretty speedy!",
+		Description: "Wow, 20 seconds, great.",
+		CheckFunc: func(data CheckData) bool {
+			if data.Event != minesweeper.Won {
+				return false
+			}
+			gameDuration := time.Since(data.Game.StartTime)
+			return gameDuration.Seconds() <= 20
+		},
+	},
+	18: {
+		Name:        "Speed demon!",
+		Description: "That's not bad! 10 seconds!",
+		CheckFunc: func(data CheckData) bool {
+			if data.Event != minesweeper.Won {
+				return false
+			}
+			gameDuration := time.Since(data.Game.StartTime)
+			return gameDuration.Seconds() <= 10
+		},
+	},
+	19: {
+		Name:        "Are you a snail?",
+		Description: "I don't understand how it could possibly take you this long",
+		CheckFunc: func(data CheckData) bool {
+			if data.Event != minesweeper.Won {
+				return false
+			}
+			gameDuration := time.Since(data.Game.StartTime)
+			return gameDuration.Seconds() >= 60*25
+		},
+	},
 }
 
 func AwardAchievements(game *MinesweeperGame, event int, clickedCell *minesweeper.Spot, chord, flagged, beforeVisit bool) map[int]Achievement {
 	var achievementsGotten = make(map[int]Achievement)
 
-	if game.Difficulty == "custom1" {
+	if game.Difficulty == "custom" {
 		return achievementsGotten
 	}
 
