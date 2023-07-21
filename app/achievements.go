@@ -127,14 +127,29 @@ var Achievements = map[int]Achievement{
 				return false
 			}
 
-			for _, spot := range data.ClickedCell.SurroundingSpots {
-				totalHidden := 0
-				for _, surroundingSpot := range spot.SurroundingSpots {
-					if surroundingSpot.DisplayedType == minesweeper.Hidden {
-						totalHidden++
+			offsets := []struct {
+				x int
+				y int
+			}{
+				{-1, 1},
+				{1, 1},
+				{-1, -1},
+				{1, -1},
+			}
+
+			for _, offset := range offsets {
+				x, y := data.ClickedCell.X+offset.x, data.ClickedCell.Y+offset.y
+				surroundingSpot := data.Game.Game.FindSpot(x, y)
+				if surroundingSpot == nil {
+					continue
+				}
+				count := 0
+				for _, cell := range surroundingSpot.SurroundingSpots {
+					if cell.DisplayedType == minesweeper.Normal {
+						count++
 					}
 				}
-				if totalHidden == spot.NearbyBombs {
+				if count == (len(surroundingSpot.SurroundingSpots) - surroundingSpot.NearbyBombs) {
 					return true
 				}
 			}
@@ -235,7 +250,7 @@ var Achievements = map[int]Achievement{
 func AwardAchievements(game *MinesweeperGame, event int, clickedCell *minesweeper.Spot, chord, flagged, beforeVisit bool) map[int]Achievement {
 	var achievementsGotten = make(map[int]Achievement)
 
-	if game.Difficulty == "custom" {
+	if game.Difficulty == "custom1" {
 		return achievementsGotten
 	}
 
