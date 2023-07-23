@@ -163,6 +163,7 @@ func startTGGUpdater(auth string) {
 					fmt.Println(err)
 					break
 				}
+				request.Header.Set("Content-Type", "application/json")
 				request.Header.Set("Authorization", auth)
 
 				_, err = http.DefaultClient.Do(request)
